@@ -17,7 +17,7 @@
   "isWhiteLabeled": true,
   "favicon": "/favicon.svg",
   "navigation": {
-    "items": [
+    "groups": [
       {
         "group": "Getting Started",
         "pages": [
@@ -215,15 +215,15 @@
         "items": [
           {
             "label": "Features",
-            "url": "/introduction#features"
+            "href": "/introduction#features"
           },
           {
             "label": "Algorithms",
-            "url": "/concepts/algorithms"
+            "href": "/concepts/algorithms"
           },
           {
             "label": "Benchmarks",
-            "url": "/testing/benchmarks"
+            "href": "/testing/benchmarks"
           }
         ]
       },
@@ -232,15 +232,15 @@
         "items": [
           {
             "label": "Documentation",
-            "url": "/introduction"
+            "href": "/introduction"
           },
           {
             "label": "GitHub",
-            "url": "https://github.com/bas3line/ultrabalancer"
+            "href": "https://github.com/bas3line/ultrabalancer"
           },
           {
             "label": "Discord Community",
-            "url": "https://discord.gg/D5S6dh9Ww9"
+            "href": "https://discord.gg/D5S6dh9Ww9"
           }
         ]
       },
@@ -249,15 +249,15 @@
         "items": [
           {
             "label": "Docker",
-            "url": "/deployment/docker"
+            "href": "/deployment/docker"
           },
           {
             "label": "Kubernetes",
-            "url": "/deployment/kubernetes"
+            "href": "/deployment/kubernetes"
           },
           {
             "label": "Cloud Providers",
-            "url": "/deployment/cloud-providers"
+            "href": "/deployment/cloud-providers"
           }
         ]
       },
@@ -266,11 +266,11 @@
         "items": [
           {
             "label": "Contact",
-            "url": "mailto:shubham@ultrabalancer.com"
+            "href": "mailto:shubham@ultrabalancer.com"
           },
           {
             "label": "Twitter",
-            "url": "https://x.com/ultrabalancer"
+            "href": "https://x.com/ultrabalancer"
           }
         ]
       }
