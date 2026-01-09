@@ -4,9 +4,9 @@
   "name": "UltraBalancer",
   "description": "Production-grade HTTP load balancer written in Rust",
   "colors": {
-    "primary": "#FDB022",
-    "light": "#FBBF24",
-    "dark": "#F59E0B"
+    "primary": "#FF5522",
+    "light": "#FF5522",
+    "dark": "#FF5522"
   },
   "background": {
     "color": {
