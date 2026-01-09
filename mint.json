@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "linden",
+  "theme": "quill",
   "name": "UltraBalancer",
   "description": "Production-grade HTTP load balancer written in Rust",
   "colors": {
@@ -210,7 +210,7 @@
     "links": [
       {
         "header": "Product",
-        "items": [
+        "links": [
           {
             "label": "Features",
             "href": "/introduction#features"
@@ -227,7 +227,7 @@
       },
       {
         "header": "Resources",
-        "items": [
+        "links": [
           {
             "label": "Documentation",
             "href": "/introduction"
@@ -244,7 +244,7 @@
       },
       {
         "header": "Deployment",
-        "items": [
+        "links": [
           {
             "label": "Docker",
             "href": "/deployment/docker"
@@ -261,7 +261,7 @@
       },
       {
         "header": "Company",
-        "items": [
+        "links": [
           {
             "label": "Contact",
             "href": "mailto:shubham@ultrabalancer.com"
