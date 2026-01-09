@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "venus",
+  "theme": "linden",
   "name": "UltraBalancer",
   "description": "Production-grade HTTP load balancer written in Rust",
   "colors": {
@@ -110,6 +110,7 @@
       "chatgpt",
       "claude",
       "perplexity",
+      "mcp",
       "cursor",
       "vscode",
       {
@@ -198,16 +199,79 @@
           ]
         }
       }
-    ],
-    "markdownExport": {
-      "enabled": true
-    }
+    ]
   },
   "footer": {
     "socials": {
       "x": "https://x.com/ultrabalancer",
       "github": "https://github.com/bas3line/ultrabalancer",
       "discord": "https://discord.gg/D5S6dh9Ww9"
-    }
+    },
+    "links": [
+      {
+        "header": "Product",
+        "items": [
+          {
+            "label": "Features",
+            "href": "/introduction#features"
+          },
+          {
+            "label": "Algorithms",
+            "href": "/concepts/algorithms"
+          },
+          {
+            "label": "Benchmarks",
+            "href": "/testing/benchmarks"
+          }
+        ]
+      },
+      {
+        "header": "Resources",
+        "items": [
+          {
+            "label": "Documentation",
+            "href": "/introduction"
+          },
+          {
+            "label": "GitHub",
+            "href": "https://github.com/bas3line/ultrabalancer"
+          },
+          {
+            "label": "Discord Community",
+            "href": "https://discord.gg/D5S6dh9Ww9"
+          }
+        ]
+      },
+      {
+        "header": "Deployment",
+        "items": [
+          {
+            "label": "Docker",
+            "href": "/deployment/docker"
+          },
+          {
+            "label": "Kubernetes",
+            "href": "/deployment/kubernetes"
+          },
+          {
+            "label": "Cloud Providers",
+            "href": "/deployment/cloud-providers"
+          }
+        ]
+      },
+      {
+        "header": "Company",
+        "items": [
+          {
+            "label": "Contact",
+            "href": "mailto:shubham@ultrabalancer.com"
+          },
+          {
+            "label": "Twitter",
+            "href": "https://x.com/ultrabalancer"
+          }
+        ]
+      }
+    ]
   }
 }
