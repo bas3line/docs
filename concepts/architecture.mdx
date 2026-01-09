@@ -7,55 +7,39 @@ description: 'Understanding UltraBalancer internal architecture'
 
 UltraBalancer is built with a modular, high-performance architecture leveraging Rust's async capabilities.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Client Requests                      │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│              Proxy Server (Tokio Runtime)               │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │          Connection Handler                        │  │
-│  │  • Accept connections                             │  │
-│  │  • Parse HTTP requests                            │  │
-│  │  • Route to request handler                       │  │
-│  └───────────────────────────────────────────────────┘  │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Request Handler                        │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  • Extract client IP                              │  │
-│  │  • Check rate limits                              │  │
-│  │  • Select backend                                 │  │
-│  │  • Proxy request                                  │  │
-│  │  • Record metrics                                 │  │
-│  └───────────────────────────────────────────────────┘  │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-        ┌──────────┴──────────┬────────────┐
-        ▼                     ▼            ▼
-┌───────────────┐    ┌────────────────┐   ┌───────────────┐
-│   Selector    │    │  Server Pool   │   │   Metrics     │
-│               │    │                │   │               │
-│ • Round Robin │    │ • Backend list │   │ • Counters    │
-│ • Least Conn  │    │ • Health state │   │ • Timers      │
-│ • IP Hash     │    │ • Connections  │   │ • Histograms  │
-│ • Weighted    │    │                │   │               │
-│ • Random      │    │                │   │               │
-└───────────────┘    └────────────────┘   └───────────────┘
-        │                     │                    │
-        └─────────────────────┴────────────────────┘
-                              │
-                              ▼
-                   ┌──────────────────┐
-                   │ Health Checker   │
-                   │  • Background    │
-                   │  • HTTP checks   │
-                   │  • Update status │
-                   └──────────────────┘
+```mermaid
+flowchart TD
+    Client[Client Requests] --> Proxy[Proxy Server<br/>Tokio Runtime]
+
+    Proxy --> Handler[Request Handler]
+    Handler --> Extract[Extract Client IP]
+    Handler --> RateLimit[Check Rate Limits]
+    Handler --> Select[Select Backend]
+    Handler --> ProxyReq[Proxy Request]
+    Handler --> Metrics[Record Metrics]
+
+    Select --> Selector[Selector]
+    Select --> Pool[Server Pool]
+    Select --> MetricsStore[Metrics Store]
+
+    Selector --> RR[Round Robin]
+    Selector --> LC[Least Connections]
+    Selector --> IH[IP Hash]
+    Selector --> W[Weighted]
+    Selector --> R[Random]
+
+    Pool --> Backend1[Backend 1]
+    Pool --> Backend2[Backend 2]
+    Pool --> Backend3[Backend N]
+
+    HealthChecker[Health Checker<br/>Background Task] --> Pool
+    HealthChecker --> Backend1
+    HealthChecker --> Backend2
+    HealthChecker --> Backend3
+
+    MetricsStore --> Counters[Request Counters]
+    MetricsStore --> Timers[Response Times]
+    MetricsStore --> Histograms[Percentiles]
 ```
 
 ## Core Modules
@@ -217,18 +201,16 @@ Shared utilities for advanced features.
 
 UltraBalancer uses **Tokio** for async I/O:
 
-```
-┌─────────────────────────────────────┐
-│      Tokio Multi-threaded Runtime   │
-│                                     │
-│  ┌────────┐ ┌────────┐ ┌────────┐  │
-│  │Worker 1│ │Worker 2│ │Worker N│  │
-│  │        │ │        │ │        │  │
-│  │ Tasks  │ │ Tasks  │ │ Tasks  │  │
-│  └────────┘ └────────┘ └────────┘  │
-└─────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Tokio["Tokio Multi-threaded Runtime"]
+        W1[Worker 1<br/>Tasks]
+        W2[Worker 2<br/>Tasks]
+        WN[Worker N<br/>Tasks]
+    end
 ```
 
+**Key Features:**
 - Work-stealing scheduler
 - Automatic load balancing
 - Configurable thread pool size
