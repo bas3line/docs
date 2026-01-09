@@ -113,92 +113,92 @@
       "mcp",
       "cursor",
       "vscode",
-      {
-        "title": "Share on X",
-        "description": "Share this documentation page on X/Twitter",
-        "icon": "x-twitter",
-        "href": {
-          "base": "https://x.com/intent/tweet",
-          "query": [
-            {
-              "key": "text",
-              "value": "Check out @ultrabalancer docs - Production-grade load balancer in Rust 🦀\n\nPage: $path\n\nhttps://docs.ultrabalancer.com$path"
-            }
-          ]
-        }
-      },
-      {
-        "title": "Ask AI about this",
-        "description": "Open this page in your preferred AI assistant",
-        "icon": "sparkles",
-        "href": {
-          "base": "https://chatgpt.com",
-          "query": [
-            {
-              "key": "q",
-              "value": "Help me understand this UltraBalancer documentation:\n\n$page"
-            }
-          ]
-        }
-      },
-      {
-        "title": "Report Issue",
-        "description": "Found a bug or error? Report it on GitHub",
-        "icon": "bug",
-        "href": {
-          "base": "https://github.com/bas3line/ultrabalancer/issues/new",
-          "query": [
-            {
-              "key": "title",
-              "value": "Documentation Issue: $path"
-            },
-            {
-              "key": "body",
-              "value": "**Page:** $path\n\n**Issue Description:**\n[Describe the issue here]\n\n**Current Content:**\n```\n$page\n```"
-            },
-            {
-              "key": "labels",
-              "value": "documentation"
-            }
-          ]
-        }
-      },
-      {
-        "title": "Suggest Improvement",
-        "description": "Have an idea to improve this page?",
-        "icon": "lightbulb",
-        "href": {
-          "base": "https://github.com/bas3line/ultrabalancer/issues/new",
-          "query": [
-            {
-              "key": "title",
-              "value": "Documentation Improvement: $path"
-            },
-            {
-              "key": "body",
-              "value": "**Page:** $path\n\n**Suggested Improvement:**\n[Describe your suggestion here]\n\n**Current Content:**\n```\n$page\n```"
-            },
-            {
-              "key": "labels",
-              "value": "enhancement,documentation"
-            }
-          ]
-        }
-      },
-      {
-        "title": "Copy as Code Comment",
-        "description": "Copy this page formatted for code comments",
-        "icon": "code",
-        "href": {
-          "base": "data:text/plain;charset=utf-8",
-          "query": [
-            {
-              "key": "content",
-              "value": "/**\n * UltraBalancer Documentation: $path\n * \n * $page\n */"
-            }
-          ]
-        }
+    {
+      "title": "Share on X",
+      "description": "Share this documentation page on X/Twitter",
+      "icon": "x-twitter",
+      "href": {
+        "base": "https://x.com/intent/tweet",
+        "query": [
+          {
+            "key": "text",
+            "value": "Check out @ultrabalancer docs - Production-grade load balancer in Rust 🦀\n\nPage: $path\n\nhttps://docs.ultrabalancer.com$path"
+          }
+        ]
       }
+    },
+    {
+      "title": "Ask AI about this",
+      "description": "Open this page in your preferred AI assistant",
+      "icon": "sparkles",
+      "href": {
+        "base": "https://chatgpt.com",
+        "query": [
+          {
+            "key": "q",
+            "value": "Help me understand this UltraBalancer documentation:\n\n$page"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Report Issue",
+      "description": "Found a bug or error? Report it on GitHub",
+      "icon": "bug",
+      "href": {
+        "base": "https://github.com/bas3line/ultrabalancer/issues/new",
+        "query": [
+          {
+            "key": "title",
+            "value": "Documentation Issue: $path"
+          },
+          {
+            "key": "body",
+            "value": "**Page:** $path\n\n**Issue Description:**\n[Describe the issue here]\n\n**Current Content:**\n```\n$page\n```"
+          },
+          {
+            "key": "labels",
+            "value": "documentation"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Suggest Improvement",
+      "description": "Have an idea to improve this page?",
+      "icon": "lightbulb",
+      "href": {
+        "base": "https://github.com/bas3line/ultrabalancer/issues/new",
+        "query": [
+          {
+            "key": "title",
+            "value": "Documentation Improvement: $path"
+          },
+          {
+            "key": "body",
+            "value": "**Page:** $path\n\n**Suggested Improvement:**\n[Describe your suggestion here]\n\n**Current Content:**\n```\n$page\n```"
+          },
+          {
+            "key": "labels",
+            "value": "enhancement,documentation"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Copy as Code Comment",
+      "description": "Copy this page formatted for code comments",
+      "icon": "code",
+      "href": {
+        "base": "data:text/plain;charset=utf-8",
+        "query": [
+          {
+            "key": "content",
+            "value": "/**\n * UltraBalancer Documentation: $path\n * \n * $page\n */"
+          }
+        ]
+      }
+    }
     ]
   },
   "footer": {
