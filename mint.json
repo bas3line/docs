@@ -110,7 +110,39 @@
       "chatgpt",
       "claude",
       "cursor",
-      "vscode"
+      "vscode",
+      {
+        "title": "Share on X",
+        "description": "Share this page on X",
+        "icon": "x-twitter",
+        "href": {
+          "base": "https://x.com/intent/tweet",
+          "query": [
+            {
+              "key": "text",
+              "value": "Check out UltraBalancer docs: $page"
+            }
+          ]
+        }
+      },
+      {
+        "title": "Report Issue",
+        "description": "Report an issue with this page on GitHub",
+        "icon": "github",
+        "href": {
+          "base": "https://github.com/bas3line/ultrabalancer/issues/new",
+          "query": [
+            {
+              "key": "title",
+              "value": "Documentation Issue: $path"
+            },
+            {
+              "key": "body",
+              "value": "Issue with documentation at: $path\n\n$page"
+            }
+          ]
+        }
+      }
     ],
     "markdownExport": {
       "enabled": true
