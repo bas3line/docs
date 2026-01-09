@@ -96,27 +96,11 @@ ultrabalancer [OPTIONS] [COMMAND]
   ```
 </ParamField>
 
-<ParamField path="--health-check-timeout" type="integer" default="2000">
-  Health check timeout in milliseconds
-
-  ```bash
-  ultrabalancer --health-check-timeout 1500 -b server1:8080
-  ```
-</ParamField>
-
 <ParamField path="--health-check-fails" type="integer" default="3">
   Number of failures before marking backend unhealthy
 
   ```bash
   ultrabalancer --health-check-fails 5 -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--health-check-path" type="string" default="/">
-  HTTP path for health checks
-
-  ```bash
-  ultrabalancer --health-check-path /health -b server1:8080
   ```
 </ParamField>
 
@@ -131,61 +115,9 @@ ultrabalancer [OPTIONS] [COMMAND]
   ```
 </ParamField>
 
-### Logging Options
-
-<ParamField path="--log-level" type="string" default="info">
-  Logging level: `trace`, `debug`, `info`, `warn`, `error`
-
-  ```bash
-  ultrabalancer --log-level debug -b server1:8080
-  ultrabalancer --log-level warn -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--log-format" type="string" default="text">
-  Log format: `text`, `json`
-
-  ```bash
-  ultrabalancer --log-format json -b server1:8080
-  ```
-</ParamField>
-
-### Connection Options
-
-<ParamField path="--max-connections" type="integer" default="10000">
-  Maximum concurrent connections
-
-  ```bash
-  ultrabalancer --max-connections 50000 -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--timeout-connect" type="integer" default="5000">
-  Connection timeout in milliseconds
-
-  ```bash
-  ultrabalancer --timeout-connect 3000 -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--timeout-request" type="integer" default="30000">
-  Request timeout in milliseconds
-
-  ```bash
-  ultrabalancer --timeout-request 60000 -b server1:8080
-  ```
-</ParamField>
-
-### Worker Options
-
-<ParamField path="--workers" type="integer" default="auto">
-  Number of worker threads (auto = CPU cores)
-
-  ```bash
-  ultrabalancer --workers 8 -b server1:8080
-  ultrabalancer --workers auto -b server1:8080
-  ```
-</ParamField>
+<Note>
+**Advanced Options:** Additional configuration options like logging, timeouts, max connections, and worker threads are available via config file only. See [File Configuration](/configuration/file-config) for details.
+</Note>
 
 ### Miscellaneous
 
@@ -494,37 +426,6 @@ kubectl run ultrabalancer \
   --log-format json
 ```
 
-## Environment Variables
-
-All CLI options can be set via environment variables with `ULTRA_` prefix:
-
-| CLI Flag | Environment Variable | Example |
-|----------|---------------------|---------|
-| `--host` | `ULTRA_HOST` | `ULTRA_HOST=0.0.0.0` |
-| `--port` | `ULTRA_PORT` | `ULTRA_PORT=80` |
-| `--algorithm` | `ULTRA_ALGORITHM` | `ULTRA_ALGORITHM=round-robin` |
-| `--backend` | `ULTRA_BACKENDS` | `ULTRA_BACKENDS=s1:8080,s2:8080` |
-| `--health-check-interval` | `ULTRA_HEALTH_CHECK_INTERVAL` | `ULTRA_HEALTH_CHECK_INTERVAL=5000` |
-| `--health-check-timeout` | `ULTRA_HEALTH_CHECK_TIMEOUT` | `ULTRA_HEALTH_CHECK_TIMEOUT=2000` |
-| `--health-check-fails` | `ULTRA_HEALTH_CHECK_FAILS` | `ULTRA_HEALTH_CHECK_FAILS=3` |
-| `--max-connections` | `ULTRA_MAX_CONNECTIONS` | `ULTRA_MAX_CONNECTIONS=10000` |
-| `--workers` | `ULTRA_WORKERS` | `ULTRA_WORKERS=8` |
-| `--log-level` | `ULTRA_LOG_LEVEL` | `ULTRA_LOG_LEVEL=debug` |
-| `--log-format` | `ULTRA_LOG_FORMAT` | `ULTRA_LOG_FORMAT=json` |
-
-**Example:**
-
-```bash
-export ULTRA_HOST="0.0.0.0"
-export ULTRA_PORT="80"
-export ULTRA_ALGORITHM="least-connections"
-export ULTRA_BACKENDS="backend1:8080,backend2:8080,backend3:8080"
-export ULTRA_HEALTH_CHECK_INTERVAL="3000"
-export ULTRA_LOG_LEVEL="info"
-export ULTRA_LOG_FORMAT="json"
-
-ultrabalancer
-```
 
 ## Exit Codes
 
@@ -542,24 +443,14 @@ ultrabalancer
 |--------|----------|
 | `SIGINT` (Ctrl+C) | Graceful shutdown |
 | `SIGTERM` | Graceful shutdown |
-| `SIGHUP` | Reload configuration |
-| `SIGUSR1` | Reopen log files |
-| `SIGUSR2` | Graceful restart |
 
-**Examples:**
+**Example:**
 
 ```bash
 # Graceful shutdown
 kill -TERM $(pidof ultrabalancer)
 
-# Reload configuration
-kill -HUP $(pidof ultrabalancer)
-
-# Reopen log files (after logrotate)
-kill -USR1 $(pidof ultrabalancer)
-
-# Graceful restart (zero downtime)
-kill -USR2 $(pidof ultrabalancer)
+# Or use Ctrl+C
 ```
 
 ## Tips & Tricks
@@ -568,10 +459,9 @@ kill -USR2 $(pidof ultrabalancer)
 **Pro Tips**
 
 1. **Use config files in production** - Easier to manage than long CLI commands
-2. **Combine config files with CLI overrides** - Base config + environment-specific overrides
-3. **Use environment variables in containers** - 12-factor app compliance
-4. **Validate config before deployment** - Use `ultrabalancer validate`
-5. **Use `--log-format json` in production** - Better for log aggregation
+2. **Validate config before deployment** - Use `ultrabalancer validate -f config.yaml`
+3. **Start simple, then optimize** - Begin with round-robin, monitor metrics, then adjust
+4. **Use systemd for process management** - See [Systemd deployment guide](/deployment/systemd)
 </Tip>
 
 <Warning>

@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "venus",
+  "theme": "linden",
   "name": "UltraBalancer",
   "description": "Production-grade HTTP load balancer written in Rust",
   "colors": {
@@ -109,13 +109,19 @@
       "view",
       "chatgpt",
       "claude",
-      "cursor"
-    ]
+      "cursor",
+      "vscode"
+    ],
+    "markdownExport": {
+      "enabled": true
+    }
   },
   "footer": {
     "socials": {
+      "x": "https://x.com/ultrabalancer",
       "github": "https://github.com/bas3line/ultrabalancer",
-      "twitter": "https://twitter.com/bas3line"
+      "discord": "https://discord.gg/D5S6dh9Ww9",
+      "email": "shubham@ultrabalancer.com"
     }
   }
 }
