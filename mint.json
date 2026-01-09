@@ -213,15 +213,15 @@
         "links": [
           {
             "label": "Features",
-            "href": "/introduction#features"
+            "url": "/introduction#features"
           },
           {
             "label": "Algorithms",
-            "href": "/concepts/algorithms"
+            "url": "/concepts/algorithms"
           },
           {
             "label": "Benchmarks",
-            "href": "/testing/benchmarks"
+            "url": "/testing/benchmarks"
           }
         ]
       },
@@ -230,15 +230,15 @@
         "links": [
           {
             "label": "Documentation",
-            "href": "/introduction"
+            "url": "/introduction"
           },
           {
             "label": "GitHub",
-            "href": "https://github.com/bas3line/ultrabalancer"
+            "url": "https://github.com/bas3line/ultrabalancer"
           },
           {
             "label": "Discord Community",
-            "href": "https://discord.gg/D5S6dh9Ww9"
+            "url": "https://discord.gg/D5S6dh9Ww9"
           }
         ]
       },
@@ -247,15 +247,15 @@
         "links": [
           {
             "label": "Docker",
-            "href": "/deployment/docker"
+            "url": "/deployment/docker"
           },
           {
             "label": "Kubernetes",
-            "href": "/deployment/kubernetes"
+            "url": "/deployment/kubernetes"
           },
           {
             "label": "Cloud Providers",
-            "href": "/deployment/cloud-providers"
+            "url": "/deployment/cloud-providers"
           }
         ]
       },
@@ -264,11 +264,11 @@
         "links": [
           {
             "label": "Contact",
-            "href": "mailto:shubham@ultrabalancer.com"
+            "url": "mailto:shubham@ultrabalancer.com"
           },
           {
             "label": "Twitter",
-            "href": "https://x.com/ultrabalancer"
+            "url": "https://x.com/ultrabalancer"
           }
         ]
       }
