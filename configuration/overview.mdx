@@ -249,147 +249,266 @@ Configuration values are resolved in the following order (highest to lowest prio
   Idle connection timeout in milliseconds.
 </ParamField>
 
+### Response Caching
+
+<ParamField path="cache.enabled" type="boolean" default="false">
+  Enable response caching for GET/HEAD requests.
+</ParamField>
+
+<ParamField path="cache.max_size" type="integer" default="10000">
+  Maximum number of cached responses.
+</ParamField>
+
+<ParamField path="cache.default_ttl_seconds" type="integer" default="300">
+  Default TTL when no Cache-Control header present.
+</ParamField>
+
+### Compression
+
+<ParamField path="compression.enabled" type="boolean" default="false">
+  Enable response compression.
+</ParamField>
+
+<ParamField path="compression.algorithm" type="string" default="gzip">
+  Compression algorithm: `gzip`, `brotli`, `zstd`.
+</ParamField>
+
+<ParamField path="compression.min_size" type="integer" default="1024">
+  Minimum response size to compress (bytes).
+</ParamField>
+
+### Rate Limiting
+
+<ParamField path="rate_limit.enabled" type="boolean" default="false">
+  Enable rate limiting.
+</ParamField>
+
+<ParamField path="rate_limit.requests_per_second" type="integer" default="1000">
+  Global rate limit (requests per second).
+</ParamField>
+
+<ParamField path="rate_limit.per_ip_rps" type="integer" default="100">
+  Per-IP rate limit (requests per second).
+</ParamField>
+
+<ParamField path="rate_limit.burst" type="integer" default="50">
+  Burst allowance above rate limit.
+</ParamField>
+
+### IP Filtering
+
+<ParamField path="ip_filter.whitelist" type="array">
+  Array of allowed IP addresses/CIDR ranges. If set, only these IPs are allowed.
+</ParamField>
+
+<ParamField path="ip_filter.blacklist" type="array">
+  Array of blocked IP addresses/CIDR ranges.
+</ParamField>
+
+### Sticky Sessions
+
+<ParamField path="sticky_sessions.enabled" type="boolean" default="false">
+  Enable cookie-based sticky sessions.
+</ParamField>
+
+<ParamField path="sticky_sessions.cookie_name" type="string" default="ULTRABALANCER_SESSION">
+  Name of the session cookie.
+</ParamField>
+
+<ParamField path="sticky_sessions.ttl_seconds" type="integer" default="3600">
+  Session TTL in seconds.
+</ParamField>
+
+### Retry Configuration
+
+<ParamField path="retry.enabled" type="boolean" default="true">
+  Enable retry on backend failures.
+</ParamField>
+
+<ParamField path="retry.max_attempts" type="integer" default="3">
+  Maximum retry attempts.
+</ParamField>
+
+<ParamField path="retry.backoff_ms" type="integer" default="100">
+  Initial backoff delay in milliseconds.
+</ParamField>
+
+<ParamField path="retry.max_backoff_ms" type="integer" default="5000">
+  Maximum backoff delay in milliseconds.
+</ParamField>
+
+### Access Logging
+
+<ParamField path="access_log.enabled" type="boolean" default="false">
+  Enable access logging.
+</ParamField>
+
+<ParamField path="access_log.path" type="string">
+  Path to access log file.
+</ParamField>
+
+<ParamField path="access_log.format" type="string" default="combined">
+  Log format: `combined`, `json`.
+</ParamField>
+
+### TLS Configuration
+
+<ParamField path="tls.enabled" type="boolean" default="false">
+  Enable TLS termination.
+</ParamField>
+
+<ParamField path="tls.cert_path" type="string">
+  Path to TLS certificate file (PEM format).
+</ParamField>
+
+<ParamField path="tls.key_path" type="string">
+  Path to TLS private key file (PEM format).
+</ParamField>
+
 ## Complete Configuration Example
 
 <CodeGroup>
 
 ```yaml config.yaml
-# UltraBalancer Production Configuration
+# UltraBalancer v3.0 Production Configuration
 
 # Listener configuration
 listen_address: "0.0.0.0"
-listen_port: 80
-workers: auto                    # Match CPU cores
-max_connections: 10000
+listen_port: 443
+workers: auto
+max_connections: 50000
 
-# Load balancing algorithm
+# Load balancing
 algorithm: "least-connections"
 
 # Backend servers
 backends:
   - host: "backend1.prod.internal"
     port: 8080
-    weight: 150
-    max_connections: 500
-
+    weight: 100
   - host: "backend2.prod.internal"
     port: 8080
-    weight: 150
-    max_connections: 500
-
+    weight: 100
   - host: "backend3.prod.internal"
     port: 8080
     weight: 100
-    max_connections: 300
 
-# Health check configuration
+# Health checks
 health_check:
   enabled: true
   interval_ms: 3000
   timeout_ms: 1500
   max_failures: 3
   path: "/health"
-  expected_status: 200
 
-  # Circuit breaker
-  circuit_breaker:
-    enabled: true
-    failure_threshold: 5
-    success_threshold: 2
-    timeout_seconds: 60
-
-# Timeout configuration
-timeout:
-  connect_ms: 5000
-  request_ms: 30000
-  idle_ms: 60000
-
-# Logging configuration
-logging:
-  level: "info"                  # trace, debug, info, warn, error
-  format: "json"                 # json, text
-  output: "/var/log/ultrabalancer/access.log"
-
-# Metrics configuration
-metrics:
+# Response caching
+cache:
   enabled: true
-  endpoint: "/metrics"
-  prometheus_endpoint: "/prometheus"
+  max_size: 10000
+  default_ttl_seconds: 300
 
-# TLS configuration (optional)
+# Compression
+compression:
+  enabled: true
+  algorithm: "gzip"      # gzip, brotli, zstd
+  min_size: 1024
+
+# Rate limiting
+rate_limit:
+  enabled: true
+  requests_per_second: 10000
+  per_ip_rps: 100
+  burst: 50
+
+# IP filtering
+ip_filter:
+  blacklist:
+    - "10.0.0.0/8"       # Block internal probes
+
+# Sticky sessions
+sticky_sessions:
+  enabled: true
+  cookie_name: "ULTRABALANCER_SESSION"
+  ttl_seconds: 3600
+
+# Retry with backoff
+retry:
+  enabled: true
+  max_attempts: 3
+  backoff_ms: 100
+  max_backoff_ms: 5000
+
+# Access logging
+access_log:
+  enabled: true
+  path: "/var/log/ultrabalancer/access.log"
+  format: "json"
+
+# TLS termination
 tls:
-  enabled: false
+  enabled: true
   cert_path: "/etc/ultrabalancer/cert.pem"
   key_path: "/etc/ultrabalancer/key.pem"
+
+# Graceful shutdown
+shutdown:
+  timeout_seconds: 30
+  drain_connections: true
 ```
 
 ```toml config.toml
-# UltraBalancer Production Configuration
+# UltraBalancer v3.0 Production Configuration
 
-# Listener configuration
 listen_address = "0.0.0.0"
-listen_port = 80
+listen_port = 443
 workers = "auto"
-max_connections = 10000
-
-# Load balancing algorithm
+max_connections = 50000
 algorithm = "least-connections"
 
-# Backend servers
 [[backends]]
 host = "backend1.prod.internal"
 port = 8080
-weight = 150
-max_connections = 500
+weight = 100
 
 [[backends]]
 host = "backend2.prod.internal"
 port = 8080
-weight = 150
-max_connections = 500
-
-[[backends]]
-host = "backend3.prod.internal"
-port = 8080
 weight = 100
-max_connections = 300
 
-# Health check configuration
 [health_check]
 enabled = true
 interval_ms = 3000
-timeout_ms = 1500
 max_failures = 3
 path = "/health"
-expected_status = 200
 
-[health_check.circuit_breaker]
+[cache]
 enabled = true
-failure_threshold = 5
-success_threshold = 2
-timeout_seconds = 60
+max_size = 10000
 
-# Timeout configuration
-[timeout]
-connect_ms = 5000
-request_ms = 30000
-idle_ms = 60000
+[compression]
+enabled = true
+algorithm = "gzip"
 
-# Logging configuration
-[logging]
-level = "info"
+[rate_limit]
+enabled = true
+requests_per_second = 10000
+per_ip_rps = 100
+
+[sticky_sessions]
+enabled = true
+cookie_name = "ULTRABALANCER_SESSION"
+
+[retry]
+enabled = true
+max_attempts = 3
+
+[access_log]
+enabled = true
+path = "/var/log/ultrabalancer/access.log"
 format = "json"
-output = "/var/log/ultrabalancer/access.log"
 
-# Metrics configuration
-[metrics]
-enabled = true
-endpoint = "/metrics"
-prometheus_endpoint = "/prometheus"
-
-# TLS configuration
 [tls]
-enabled = false
+enabled = true
 cert_path = "/etc/ultrabalancer/cert.pem"
 key_path = "/etc/ultrabalancer/key.pem"
 ```
@@ -518,7 +637,7 @@ logging:
 
 ```yaml config-prod.yaml
 listen_address: "0.0.0.0"
-listen_port: 80
+listen_port: 443
 algorithm: "least-connections"
 workers: auto
 max_connections: 50000
@@ -530,28 +649,42 @@ backends:
   - host: "backend2.prod.internal"
     port: 8080
     weight: 100
-  - host: "backend3.prod.internal"
-    port: 8080
-    weight: 100
 
 health_check:
   enabled: true
   interval_ms: 3000
-  timeout_ms: 1500
   max_failures: 3
-  circuit_breaker:
-    enabled: true
-    failure_threshold: 5
-    timeout_seconds: 60
 
-timeout:
-  connect_ms: 5000
-  request_ms: 30000
+cache:
+  enabled: true
+  max_size: 10000
 
-logging:
-  level: "info"
+compression:
+  enabled: true
+  algorithm: "gzip"
+
+rate_limit:
+  enabled: true
+  requests_per_second: 10000
+  per_ip_rps: 100
+
+retry:
+  enabled: true
+  max_attempts: 3
+
+access_log:
+  enabled: true
+  path: "/var/log/ultrabalancer/access.log"
   format: "json"
-  output: "/var/log/ultrabalancer/access.log"
+
+tls:
+  enabled: true
+  cert_path: "/etc/ultrabalancer/cert.pem"
+  key_path: "/etc/ultrabalancer/key.pem"
+
+shutdown:
+  timeout_seconds: 30
+  drain_connections: true
 ```
 
 ## Dynamic Configuration Reload

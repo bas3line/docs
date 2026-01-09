@@ -27,7 +27,7 @@
         ]
       },
       {
-        "group": "Core Concepts",
+        "group": "Concepts",
         "pages": [
           "concepts/architecture",
           "concepts/algorithms",
@@ -40,38 +40,26 @@
         "pages": [
           "configuration/overview",
           "configuration/cli-reference",
-          "configuration/file-config",
           "configuration/examples"
         ]
       },
       {
         "group": "Deployment",
         "pages": [
-          "deployment/linux-server",
           "deployment/docker",
           "deployment/kubernetes",
-          "deployment/systemd",
-          "deployment/cloud-providers"
+          "deployment/linux-server"
         ]
       },
       {
-        "group": "Testing & Benchmarking",
+        "group": "Testing",
         "pages": [
-          "testing/local-testing",
-          "testing/load-testing",
-          "testing/benchmarks"
+          "testing/benchmarks",
+          "testing/load-testing"
         ]
       },
       {
-        "group": "Integration",
-        "pages": [
-          "integration/ai-agents",
-          "integration/monitoring",
-          "integration/cicd"
-        ]
-      },
-      {
-        "group": "API Reference",
+        "group": "API",
         "pages": [
           "api-reference/health",
           "api-reference/metrics",
@@ -82,8 +70,8 @@
         "group": "Advanced",
         "pages": [
           "advanced/performance-tuning",
-          "advanced/troubleshooting",
-          "advanced/security"
+          "advanced/security",
+          "advanced/troubleshooting"
         ]
       }
     ]

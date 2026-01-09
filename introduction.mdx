@@ -1,111 +1,130 @@
 ---
 title: Introduction
-description: 'Production-grade HTTP load balancer written in Rust'
+description: 'Production-grade HTTP/2 load balancer written in Rust - 500k+ RPS'
 ---
 
 ## What is UltraBalancer?
 
-UltraBalancer is a modern, high-performance load balancer built from the ground up in Rust. It combines blazing-fast performance with production-ready reliability, making it the perfect choice for modern cloud-native applications.
+UltraBalancer is a modern, high-performance load balancer built from the ground up in Rust. Designed for extreme throughput (500k+ RPS), it supports HTTP/1.1, HTTP/2, WebSockets, and TLS termination out of the box.
 
 <CardGroup cols={2}>
   <Card
-    title="Lightning Fast"
+    title="500k+ RPS"
     icon="bolt"
     href="/concepts/architecture"
   >
-    Built with Tokio async runtime for maximum throughput
+    Built with Tokio async runtime and lock-free data structures
+  </Card>
+  <Card
+    title="HTTP/2 & WebSocket"
+    icon="arrows-left-right"
+  >
+    Full HTTP/2 multiplexing and WebSocket proxying support
   </Card>
   <Card
     title="Production Ready"
     icon="shield-check"
   >
-    Zero-downtime deployments with automatic health checks
-  </Card>
-  <Card
-    title="Easy to Use"
-    icon="rocket"
-    href="/quickstart"
-  >
-    Get started with a single command
+    TLS termination, rate limiting, and graceful shutdown
   </Card>
   <Card
     title="Observable"
     icon="chart-line"
   >
-    Built-in metrics and Prometheus integration
+    Built-in metrics, access logs, and Prometheus integration
   </Card>
 </CardGroup>
 
 ## Key Features
 
 <AccordionGroup>
-  <Accordion title="Multiple Load Balancing Algorithms">
-    - **[Round Robin](/concepts/algorithms#round-robin)** - Equal distribution across backends
-    - **[Least Connections](/concepts/algorithms#least-connections)** - Smart connection balancing
-    - **[IP Hash](/concepts/algorithms#ip-hash)** - Consistent hashing for session persistence
-    - **[Weighted Round Robin](/concepts/algorithms#weighted-round-robin)** - Priority-based distribution
-    - **[Random](/concepts/algorithms#random)** - Stochastic distribution
+  <Accordion title="Load Balancing Algorithms">
+    - **Round Robin** - Equal distribution across backends
+    - **Least Connections** - Smart connection-aware balancing
+    - **IP Hash** - Consistent hashing for session affinity
+    - **Weighted Round Robin** - Priority-based distribution
+    - **Random** - Stochastic distribution
 
     [Learn more about algorithms →](/concepts/algorithms)
   </Accordion>
 
-  <Accordion title="Health Checking & Failover">
-    - Automatic backend health monitoring
-    - Configurable check intervals and failure thresholds
-    - Instant failover to healthy backends
-    - Graceful recovery when backends come back online
-    - Circuit breaker pattern for fault tolerance
+  <Accordion title="Protocol Support">
+    - **HTTP/1.1** with keep-alive connection pooling
+    - **HTTP/2** multiplexing for improved performance
+    - **WebSocket** full-duplex proxying support
+    - **TLS termination** with rustls (modern, memory-safe TLS)
+
+    [Learn more about architecture →](/concepts/architecture)
+  </Accordion>
+
+  <Accordion title="Caching & Compression">
+    - **Response caching** with TTL and Cache-Control support
+    - **Gzip compression** for text content
+    - **Brotli compression** for better ratios
+    - **Zstd compression** for maximum performance
+    - Automatic content-type detection
+
+    [Learn more about configuration →](/configuration/overview)
+  </Accordion>
+
+  <Accordion title="Security & Rate Limiting">
+    - **Global rate limiting** - requests per second cap
+    - **Per-IP rate limiting** - prevent abuse from single sources
+    - **IP filtering** - whitelist/blacklist with CIDR support
+    - **TLS termination** - secure client connections
+
+    [Learn more about security →](/advanced/security)
+  </Accordion>
+
+  <Accordion title="Session Management">
+    - **Sticky sessions** - cookie-based backend affinity
+    - **Health checking** - automatic backend monitoring
+    - **Circuit breaker** - fault tolerance pattern
+    - **Retry with backoff** - exponential backoff on failures
 
     [Learn more about health checks →](/concepts/health-checks)
   </Accordion>
 
-  <Accordion title="Metrics & Monitoring">
-    - Real-time request metrics
-    - Response time tracking (avg, p50, p95, p99)
-    - Prometheus-compatible metrics endpoint
-    - JSON metrics API
-    - Built-in `/health`, `/metrics`, `/prometheus` endpoints
+  <Accordion title="Operations & Observability">
+    - **Graceful shutdown** - drain connections on SIGTERM
+    - **Access logging** - combined and JSON formats
+    - **Real-time metrics** - response times (p50, p95, p99)
+    - **Prometheus endpoint** - `/prometheus` metrics export
+    - **Request ID tracking** - distributed tracing support
 
     [Learn more about metrics →](/concepts/metrics)
   </Accordion>
-
-  <Accordion title="Advanced Features">
-    - Circuit breaker pattern for fault tolerance
-    - Connection pooling for optimal resource usage
-    - Rate limiting capabilities
-    - Modular architecture for easy extension
-    - Lock-free operations for maximum performance
-
-    [Learn more about architecture →](/concepts/architecture)
-  </Accordion>
 </AccordionGroup>
 
-## Why Choose UltraBalancer?
+## Why UltraBalancer?
 
 <CardGroup cols={3}>
-  <Card title="Performance" icon="gauge-high">
-    Built in Rust for memory safety and blazing-fast performance. Handles thousands of concurrent connections with minimal overhead.
+  <Card title="Extreme Performance" icon="gauge-high">
+    500k+ RPS with lock-free data structures and zero-copy I/O. HTTP/2 multiplexing for reduced latency.
   </Card>
-  <Card title="Reliability" icon="shield">
-    Production-tested with automatic health checks, circuit breakers, and graceful failure handling.
+  <Card title="Feature Complete" icon="shield">
+    Caching, compression, rate limiting, sticky sessions, TLS - everything built in, no plugins needed.
   </Card>
-  <Card title="Simplicity" icon="wand-magic-sparkles">
-    Simple CLI interface and YAML configuration. Deploy with a single command.
+  <Card title="Zero Config" icon="wand-magic-sparkles">
+    Start with a single command. YAML/TOML config for production. Sane defaults throughout.
   </Card>
 </CardGroup>
 
 ## Quick Example
 
 ```bash
-# Start with three backend servers
-ultrabalancer start round-robin \
-  app1.example.com:8080 \
-  app2.example.com:8080 \
-  app3.example.com:8080 \
-  -p 80
+# Basic load balancing
+ultrabalancer start round-robin backend1:8080 backend2:8080 -p 80
+
+# With caching and compression
+ultrabalancer start least-connections backend1:8080 backend2:8080 \
+  --cache --compression gzip -p 80
+
+# Full production config
+ultrabalancer start -c /etc/ultrabalancer/config.yaml
 ```
 
-That's it! UltraBalancer is now distributing traffic across your backends with automatic health checking.
+UltraBalancer distributes traffic with automatic health checking, retries, and failover.
 
 ## Installation
 
@@ -156,75 +175,22 @@ That's it! UltraBalancer is now distributing traffic across your backends with a
 ## Use Cases
 
 <CardGroup cols={2}>
-  <Card title="Web Applications" icon="globe">
-    Load balance HTTP/HTTPS traffic across multiple web servers. Perfect for high-traffic websites and APIs.
+  <Card title="High-Traffic APIs" icon="globe">
+    Handle 500k+ RPS with caching, compression, and rate limiting. Perfect for production APIs.
   </Card>
 
   <Card title="Microservices" icon="diagram-project">
-    Distribute requests across microservice instances with health checking and automatic failover.
+    Health checking, circuit breakers, and sticky sessions for stateful services.
   </Card>
 
-  <Card title="API Gateways" icon="door-open">
-    Front multiple API servers with intelligent routing and request distribution.
+  <Card title="WebSocket Apps" icon="arrows-left-right">
+    Full WebSocket proxying for real-time applications like chat and gaming.
   </Card>
 
-  <Card title="Database Proxies" icon="database">
-    Load balance read queries across database replicas with connection pooling.
+  <Card title="Edge Proxies" icon="shield-check">
+    TLS termination, IP filtering, and access logging at the edge.
   </Card>
 </CardGroup>
-
-## Documentation Overview
-
-<AccordionGroup>
-  <Accordion title="Getting Started">
-    - [Introduction](/introduction) - Overview and key features
-    - [Quickstart](/quickstart) - Get running in 5 minutes
-    - [Installation](/installation) - Install on any platform
-  </Accordion>
-
-  <Accordion title="Core Concepts">
-    - [Architecture](/concepts/architecture) - System design and components
-    - [Algorithms](/concepts/algorithms) - Load balancing strategies
-    - [Health Checks](/concepts/health-checks) - Monitoring and failover
-    - [Metrics](/concepts/metrics) - Performance monitoring
-  </Accordion>
-
-  <Accordion title="Configuration">
-    - [Overview](/configuration/overview) - Configuration methods
-    - [CLI Reference](/configuration/cli-reference) - Command-line options
-    - [File Config](/configuration/file-config) - YAML/TOML configuration
-    - [Examples](/configuration/examples) - Real-world configs
-  </Accordion>
-
-  <Accordion title="Deployment">
-    - [Linux Server](/deployment/linux-server) - Ubuntu, Debian, CentOS, Arch
-    - [Docker](/deployment/docker) - Container deployment
-    - [Kubernetes](/deployment/kubernetes) - K8s manifests and Helm
-    - [Systemd](/deployment/systemd) - Service configuration
-    - [Cloud Providers](/deployment/cloud-providers) - AWS, GCP, Azure
-  </Accordion>
-
-  <Accordion title="Testing & Integration">
-    - [Local Testing](/testing/local-testing) - Test your setup
-    - [Load Testing](/testing/load-testing) - Performance testing
-    - [Benchmarks](/testing/benchmarks) - Performance comparisons
-    - [AI Agents](/integration/ai-agents) - Claude, ChatGPT, Cursor
-    - [Monitoring](/integration/monitoring) - Prometheus, Grafana
-    - [CI/CD](/integration/cicd) - GitHub Actions, GitLab CI
-  </Accordion>
-
-  <Accordion title="API Reference">
-    - [/health](/api-reference/health) - Health check endpoint
-    - [/metrics](/api-reference/metrics) - JSON metrics endpoint
-    - [/prometheus](/api-reference/prometheus) - Prometheus metrics
-  </Accordion>
-
-  <Accordion title="Advanced">
-    - [Performance Tuning](/advanced/performance-tuning) - Optimization tips
-    - [Troubleshooting](/advanced/troubleshooting) - Common issues
-    - [Security](/advanced/security) - Security hardening
-  </Accordion>
-</AccordionGroup>
 
 ## Next Steps
 
