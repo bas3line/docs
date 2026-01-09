@@ -1,0 +1,277 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "linden",
+  "name": "UltraBalancer",
+  "description": "Production-grade HTTP load balancer written in Rust",
+  "colors": {
+    "primary": "#FDB022",
+    "light": "#FBBF24",
+    "dark": "#F59E0B"
+  },
+  "background": {
+    "color": {
+      "light": "#FEFCF8",
+      "dark": "#151413"
+    }
+  },
+  "isWhiteLabeled": true,
+  "favicon": "/favicon.svg",
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "installation"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/architecture",
+        "concepts/algorithms",
+        "concepts/health-checks",
+        "concepts/metrics"
+      ]
+    },
+    {
+      "group": "Configuration",
+      "pages": [
+        "configuration/overview",
+        "configuration/cli-reference",
+        "configuration/file-config",
+        "configuration/examples"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/linux-server",
+        "deployment/docker",
+        "deployment/kubernetes",
+        "deployment/systemd",
+        "deployment/cloud-providers"
+      ]
+    },
+    {
+      "group": "Testing & Benchmarking",
+      "pages": [
+        "testing/local-testing",
+        "testing/load-testing",
+        "testing/benchmarks"
+      ]
+    },
+    {
+      "group": "Integration",
+      "pages": [
+        "integration/ai-agents",
+        "integration/monitoring",
+        "integration/cicd"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/health",
+        "api-reference/metrics",
+        "api-reference/prometheus"
+      ]
+    },
+    {
+      "group": "Advanced",
+      "pages": [
+        "advanced/performance-tuning",
+        "advanced/troubleshooting",
+        "advanced/security"
+      ]
+    }
+  ],
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/bas3line/ultrabalancer"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "/quickstart"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode",
+    {
+      "title": "Share on X",
+      "description": "Share this documentation page on X/Twitter",
+      "icon": "x-twitter",
+      "href": {
+        "base": "https://x.com/intent/tweet",
+        "query": [
+          {
+            "key": "text",
+            "value": "Check out @ultrabalancer docs - Production-grade load balancer in Rust 🦀\n\nPage: $path\n\nhttps://docs.ultrabalancer.com$path"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Ask AI about this",
+      "description": "Open this page in your preferred AI assistant",
+      "icon": "sparkles",
+      "href": {
+        "base": "https://chatgpt.com",
+        "query": [
+          {
+            "key": "q",
+            "value": "Help me understand this UltraBalancer documentation:\n\n$page"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Report Issue",
+      "description": "Found a bug or error? Report it on GitHub",
+      "icon": "bug",
+      "href": {
+        "base": "https://github.com/bas3line/ultrabalancer/issues/new",
+        "query": [
+          {
+            "key": "title",
+            "value": "Documentation Issue: $path"
+          },
+          {
+            "key": "body",
+            "value": "**Page:** $path\n\n**Issue Description:**\n[Describe the issue here]\n\n**Current Content:**\n```\n$page\n```"
+          },
+          {
+            "key": "labels",
+            "value": "documentation"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Suggest Improvement",
+      "description": "Have an idea to improve this page?",
+      "icon": "lightbulb",
+      "href": {
+        "base": "https://github.com/bas3line/ultrabalancer/issues/new",
+        "query": [
+          {
+            "key": "title",
+            "value": "Documentation Improvement: $path"
+          },
+          {
+            "key": "body",
+            "value": "**Page:** $path\n\n**Suggested Improvement:**\n[Describe your suggestion here]\n\n**Current Content:**\n```\n$page\n```"
+          },
+          {
+            "key": "labels",
+            "value": "enhancement,documentation"
+          }
+        ]
+      }
+    },
+    {
+      "title": "Copy as Code Comment",
+      "description": "Copy this page formatted for code comments",
+      "icon": "code",
+      "href": {
+        "base": "data:text/plain;charset=utf-8",
+        "query": [
+          {
+            "key": "content",
+            "value": "/**\n * UltraBalancer Documentation: $path\n * \n * $page\n */"
+          }
+        ]
+      }
+    }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/ultrabalancer",
+      "github": "https://github.com/bas3line/ultrabalancer",
+      "discord": "https://discord.gg/D5S6dh9Ww9"
+    },
+    "links": [
+      {
+        "header": "Product",
+        "links": [
+          {
+            "label": "Features",
+            "url": "/introduction#features"
+          },
+          {
+            "label": "Algorithms",
+            "url": "/concepts/algorithms"
+          },
+          {
+            "label": "Benchmarks",
+            "url": "/testing/benchmarks"
+          }
+        ]
+      },
+      {
+        "header": "Resources",
+        "links": [
+          {
+            "label": "Documentation",
+            "url": "/introduction"
+          },
+          {
+            "label": "GitHub",
+            "url": "https://github.com/bas3line/ultrabalancer"
+          },
+          {
+            "label": "Discord Community",
+            "url": "https://discord.gg/D5S6dh9Ww9"
+          }
+        ]
+      },
+      {
+        "header": "Deployment",
+        "links": [
+          {
+            "label": "Docker",
+            "url": "/deployment/docker"
+          },
+          {
+            "label": "Kubernetes",
+            "url": "/deployment/kubernetes"
+          },
+          {
+            "label": "Cloud Providers",
+            "url": "/deployment/cloud-providers"
+          }
+        ]
+      },
+      {
+        "header": "Company",
+        "links": [
+          {
+            "label": "Contact",
+            "url": "mailto:shubham@ultrabalancer.com"
+          },
+          {
+            "label": "Twitter",
+            "url": "https://x.com/ultrabalancer"
+          }
+        ]
+      }
+    ]
+  }
+}
