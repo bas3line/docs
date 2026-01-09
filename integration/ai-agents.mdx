@@ -1,0 +1,729 @@
+---
+title: 'AI Agent Integration'
+description: 'How to tell AI coding agents to implement and configure UltraBalancer'
+---
+
+## Overview
+
+This guide shows you how to instruct AI coding agents (Claude, ChatGPT, Cursor, etc.) to implement UltraBalancer in your infrastructure.
+
+<Note>
+AI agents work best with clear, specific instructions. Copy and paste the prompts below directly into your AI assistant.
+</Note>
+
+## Prompts for AI Agents
+
+### Installing UltraBalancer
+
+<CodeGroup>
+
+```markdown Claude/ChatGPT
+Install UltraBalancer load balancer on Ubuntu 22.04 server:
+
+1. Install Rust toolchain:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   source $HOME/.cargo/env
+   ```
+
+2. Install build dependencies:
+   ```bash
+   sudo apt update
+   sudo apt install -y build-essential pkg-config libssl-dev git
+   ```
+
+3. Clone and build UltraBalancer:
+   ```bash
+   git clone https://github.com/bas3line/ultrabalancer.git
+   cd ultrabalancer
+   cargo build --release
+   sudo cp target/release/ultrabalancer /usr/local/bin/
+   ```
+
+4. Verify installation:
+   ```bash
+   ultrabalancer --version
+   ```
+
+Please execute these commands and show me the output.
+```
+
+```markdown Cursor
+@workspace Install UltraBalancer load balancer:
+
+- Install from: https://github.com/bas3line/ultrabalancer
+- Build from source using Cargo
+- Place binary in /usr/local/bin
+- Create systemd service file
+- Enable and start the service
+
+Show me each step with code.
+```
+
+```markdown GitHub Copilot Chat
+How do I install UltraBalancer load balancer from https://github.com/bas3line/ultrabalancer?
+
+Steps needed:
+1. Install Rust if not present
+2. Clone repository
+3. Build with cargo build --release
+4. Install system-wide
+5. Create systemd service
+```
+
+</CodeGroup>
+
+### Creating Configuration Files
+
+<CodeGroup>
+
+```markdown For Claude/ChatGPT
+Create a UltraBalancer configuration file for load balancing across 3 web servers:
+
+Requirements:
+- Listen on port 80
+- Backend servers: 192.168.1.10:8080, 192.168.1.11:8080, 192.168.1.12:8080
+- Use round-robin algorithm
+- Enable health checks every 5 seconds
+- Maximum 3 failures before marking server down
+- Save as /etc/ultrabalancer/config.yaml
+
+Generate the complete YAML configuration file.
+```
+
+```markdown For Cursor
+@workspace Create UltraBalancer config:
+
+- Path: /etc/ultrabalancer/config.yaml
+- Algorithm: least-connections
+- Backends: app1:8080 (weight 200), app2:8080 (weight 100), app3:8080 (weight 100)
+- Health checks enabled, 10s interval
+- Connection timeout: 5s, Request timeout: 30s
+
+Generate the full YAML file.
+```
+
+</CodeGroup>
+
+### Setting Up Systemd Service
+
+<CodeGroup>
+
+```markdown Complete Systemd Setup
+Create a systemd service for UltraBalancer:
+
+1. Create service file at /etc/systemd/system/ultrabalancer.service:
+   ```ini
+   [Unit]
+   Description=UltraBalancer Load Balancer
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=ultrabalancer
+   Group=ultrabalancer
+   ExecStart=/usr/local/bin/ultrabalancer -c /etc/ultrabalancer/config.yaml
+   Restart=always
+   RestartSec=5
+   StandardOutput=journal
+   StandardError=journal
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+2. Create user and directories:
+   ```bash
+   sudo useradd -r -s /bin/false ultrabalancer
+   sudo mkdir -p /etc/ultrabalancer
+   sudo chown ultrabalancer:ultrabalancer /etc/ultrabalancer
+   ```
+
+3. Enable and start:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable ultrabalancer
+   sudo systemctl start ultrabalancer
+   sudo systemctl status ultrabalancer
+   ```
+
+Please create all files and execute all commands.
+```
+
+```markdown Minimal Systemd
+Create systemd service for UltraBalancer at /etc/systemd/system/ultrabalancer.service:
+
+- Binary: /usr/local/bin/ultrabalancer
+- Config: /etc/ultrabalancer/config.yaml
+- Run as root
+- Auto-restart on failure
+- Enable on boot
+
+Then enable and start the service.
+```
+
+</CodeGroup>
+
+### Deploying on Different Linux Distributions
+
+<AccordionGroup>
+  <Accordion title="Ubuntu/Debian Deployment">
+    Deploy UltraBalancer on Ubuntu 22.04:
+
+    1. Install dependencies:
+       ```bash
+       sudo apt update && sudo apt install -y curl build-essential pkg-config libssl-dev git
+       ```
+
+    2. Install Rust:
+       ```bash
+       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+       source $HOME/.cargo/env
+       ```
+
+    3. Build UltraBalancer:
+       ```bash
+       git clone https://github.com/bas3line/ultrabalancer.git
+       cd ultrabalancer
+       cargo build --release
+       sudo install -m 755 target/release/ultrabalancer /usr/local/bin/
+       ```
+
+    4. Configure firewall:
+       ```bash
+       sudo ufw allow 80/tcp
+       sudo ufw allow 8080/tcp
+       ```
+
+    5. Create systemd service and start
+  </Accordion>
+
+  <Accordion title="CentOS/RHEL Deployment">
+    Deploy UltraBalancer on CentOS 8 Stream:
+
+    1. Install dependencies:
+       ```bash
+       sudo dnf groupinstall "Development Tools" -y
+       sudo dnf install -y pkg-config openssl-devel git
+       ```
+
+    2. Install Rust:
+       ```bash
+       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+       source $HOME/.cargo/env
+       ```
+
+    3. Build and install:
+       ```bash
+       git clone https://github.com/bas3line/ultrabalancer.git
+       cd ultrabalancer
+       cargo build --release
+       sudo cp target/release/ultrabalancer /usr/local/bin/
+       ```
+
+    4. Configure firewalld:
+       ```bash
+       sudo firewall-cmd --permanent --add-port=80/tcp
+       sudo firewall-cmd --reload
+       ```
+  </Accordion>
+
+  <Accordion title="Debian Deployment">
+    Deploy UltraBalancer on Debian 12:
+
+    1. Update and install dependencies:
+       ```bash
+       sudo apt update && sudo apt upgrade -y
+       sudo apt install -y curl build-essential pkg-config libssl-dev git
+       ```
+
+    2. Install Rust:
+       ```bash
+       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+       source $HOME/.cargo/env
+       ```
+
+    3. Clone and build:
+       ```bash
+       git clone https://github.com/bas3line/ultrabalancer.git
+       cd ultrabalancer
+       cargo build --release
+       sudo install -m 755 target/release/ultrabalancer /usr/local/bin/
+       ```
+
+    4. Setup directories and user:
+       ```bash
+       sudo mkdir -p /etc/ultrabalancer /var/log/ultrabalancer
+       sudo useradd -r -s /sbin/nologin ultrabalancer
+       ```
+  </Accordion>
+
+  <Accordion title="Arch Linux Deployment">
+    Deploy UltraBalancer on Arch Linux:
+
+    1. Install dependencies:
+       ```bash
+       sudo pacman -Syu
+       sudo pacman -S base-devel openssl git rustup
+       rustup default stable
+       ```
+
+    2. Build UltraBalancer:
+       ```bash
+       git clone https://github.com/bas3line/ultrabalancer.git
+       cd ultrabalancer
+       cargo build --release
+       sudo install -Dm755 target/release/ultrabalancer /usr/local/bin/ultrabalancer
+       ```
+
+    3. Setup directories:
+       ```bash
+       sudo mkdir -p /etc/ultrabalancer
+       sudo useradd -r -s /usr/bin/nologin ultrabalancer
+       ```
+  </Accordion>
+</AccordionGroup>
+
+
+
+### Docker Deployment
+
+<CodeGroup>
+
+```markdown Docker Compose
+Create a Docker Compose setup for UltraBalancer:
+
+1. Create docker-compose.yml:
+   ```yaml
+   version: '3.8'
+
+   services:
+     ultrabalancer:
+       image: ghcr.io/bas3line/ultrabalancer:latest
+       container_name: ultrabalancer
+       ports:
+         - "80:8080"
+       volumes:
+         - ./config.yaml:/config.yaml
+       command: ["-c", "/config.yaml"]
+       restart: unless-stopped
+       networks:
+         - app-network
+
+     backend1:
+       image: nginx:alpine
+       container_name: backend1
+       networks:
+         - app-network
+
+     backend2:
+       image: nginx:alpine
+       container_name: backend2
+       networks:
+         - app-network
+
+     backend3:
+       image: nginx:alpine
+       container_name: backend3
+       networks:
+         - app-network
+
+   networks:
+     app-network:
+       driver: bridge
+   ```
+
+2. Create config.yaml:
+   ```yaml
+   listen_address: "0.0.0.0"
+   listen_port: 8080
+   algorithm: "round-robin"
+   backends:
+     - host: "backend1"
+       port: 80
+       weight: 100
+     - host: "backend2"
+       port: 80
+       weight: 100
+     - host: "backend3"
+       port: 80
+       weight: 100
+   health_check:
+     enabled: true
+     interval_ms: 5000
+     max_failures: 3
+   ```
+
+3. Start everything:
+   ```bash
+   docker-compose up -d
+   curl http://localhost/health
+   ```
+
+Create these files and start the services.
+```
+
+```markdown Custom Dockerfile
+Create a custom Docker image for UltraBalancer with embedded configuration:
+
+1. Create Dockerfile:
+   ```dockerfile
+   FROM ghcr.io/bas3line/ultrabalancer:latest
+
+   COPY config.yaml /etc/ultrabalancer/config.yaml
+
+   EXPOSE 8080
+
+   CMD ["-c", "/etc/ultrabalancer/config.yaml"]
+   ```
+
+2. Build and run:
+   ```bash
+   docker build -t my-ultrabalancer .
+   docker run -d -p 80:8080 --name ultrabalancer my-ultrabalancer
+   ```
+
+Create the Dockerfile and build commands.
+```
+
+</CodeGroup>
+
+### Kubernetes Deployment
+
+```markdown Kubernetes Setup
+Create Kubernetes manifests for UltraBalancer:
+
+1. Create ConfigMap (ultrabalancer-config.yaml):
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: ultrabalancer-config
+     namespace: default
+   data:
+     config.yaml: |
+       listen_address: "0.0.0.0"
+       listen_port: 8080
+       algorithm: "least-connections"
+       backends:
+         - host: "backend-service"
+           port: 80
+           weight: 100
+       health_check:
+         enabled: true
+         interval_ms: 5000
+         max_failures: 3
+   ```
+
+2. Create Deployment (ultrabalancer-deployment.yaml):
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: ultrabalancer
+     namespace: default
+   spec:
+     replicas: 2
+     selector:
+       matchLabels:
+         app: ultrabalancer
+     template:
+       metadata:
+         labels:
+           app: ultrabalancer
+       spec:
+         containers:
+         - name: ultrabalancer
+           image: ghcr.io/bas3line/ultrabalancer:latest
+           args: ["-c", "/config/config.yaml"]
+           ports:
+           - containerPort: 8080
+           volumeMounts:
+           - name: config
+             mountPath: /config
+           livenessProbe:
+             httpGet:
+               path: /health
+               port: 8080
+             initialDelaySeconds: 10
+             periodSeconds: 5
+           readinessProbe:
+             httpGet:
+               path: /health
+               port: 8080
+             initialDelaySeconds: 5
+             periodSeconds: 3
+         volumes:
+         - name: config
+           configMap:
+             name: ultrabalancer-config
+   ```
+
+3. Create Service (ultrabalancer-service.yaml):
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: ultrabalancer
+     namespace: default
+   spec:
+     type: LoadBalancer
+     selector:
+       app: ultrabalancer
+     ports:
+     - protocol: TCP
+       port: 80
+       targetPort: 8080
+   ```
+
+4. Apply manifests:
+   ```bash
+   kubectl apply -f ultrabalancer-config.yaml
+   kubectl apply -f ultrabalancer-deployment.yaml
+   kubectl apply -f ultrabalancer-service.yaml
+   kubectl get pods -l app=ultrabalancer
+   kubectl get svc ultrabalancer
+   ```
+
+Create all manifests and apply them to the cluster.
+```
+
+## Testing Instructions for AI
+
+```markdown Testing Prompt
+After deploying UltraBalancer, run these tests:
+
+1. Health check:
+   ```bash
+   curl http://localhost/health | jq
+   ```
+   Expected: status "ok", healthy_backends shows all backends
+
+2. Load test with 100 requests:
+   ```bash
+   for i in {1..100}; do
+     curl -s http://localhost/ &
+   done
+   wait
+   ```
+
+3. Check metrics:
+   ```bash
+   curl http://localhost/metrics | jq
+   ```
+   Verify: total_requests = 100, successful_requests = 100
+
+4. Test failover - kill one backend and verify:
+   ```bash
+   # Kill backend
+   sudo systemctl stop backend1
+
+   # Check health
+   curl http://localhost/health | jq
+   # Should show degraded status
+
+   # Send requests - should only go to healthy backends
+   for i in {1..10}; do curl http://localhost/; done
+   ```
+
+5. Performance test:
+   ```bash
+   # Install Apache Bench if needed
+   sudo apt install -y apache2-utils
+
+   # Run benchmark
+   ab -n 10000 -c 100 http://localhost/
+   ```
+   Report: requests per second, time per request, percentage served
+
+Run all tests and show me the results.
+```
+
+## Common AI Agent Scenarios
+
+<AccordionGroup>
+  <Accordion title="Auto-scaling backend servers">
+    ```markdown Prompt
+    Modify UltraBalancer configuration to add a new backend server:
+
+    Current config at /etc/ultrabalancer/config.yaml
+
+    Add new backend: 192.168.1.20:8080 with weight 100
+
+    Steps:
+    1. Update the YAML file
+    2. Reload UltraBalancer service
+    3. Verify new backend is healthy
+    4. Test that traffic is distributed to it
+
+    Show me the updated config and verification steps.
+    ```
+  </Accordion>
+
+  <Accordion title="Switching algorithms">
+    ```markdown Prompt
+    Change UltraBalancer from round-robin to least-connections algorithm:
+
+    1. Edit /etc/ultrabalancer/config.yaml
+    2. Change algorithm field to "least-connections"
+    3. Restart service: sudo systemctl restart ultrabalancer
+    4. Verify: check metrics to see connection distribution
+    5. Send 50 concurrent requests and show distribution
+
+    Execute and show before/after metrics.
+    ```
+  </Accordion>
+
+  <Accordion title="Adding monitoring">
+    ```markdown Prompt
+    Set up Prometheus monitoring for UltraBalancer:
+
+    1. Install Prometheus:
+       ```bash
+       sudo apt install -y prometheus
+       ```
+
+    2. Add UltraBalancer to /etc/prometheus/prometheus.yml:
+       ```yaml
+       scrape_configs:
+         - job_name: 'ultrabalancer'
+           static_configs:
+             - targets: ['localhost:8080']
+           metrics_path: '/prometheus'
+           scrape_interval: 15s
+       ```
+
+    3. Restart Prometheus:
+       ```bash
+       sudo systemctl restart prometheus
+       ```
+
+    4. Verify metrics in Prometheus UI at http://localhost:9090
+
+    5. Create Grafana dashboard with these queries:
+       - rate(ultrabalancer_requests_total[5m])
+       - ultrabalancer_response_time_p95
+       - ultrabalancer_healthy_backends
+
+    Complete the setup and provide the Grafana JSON.
+    ```
+  </Accordion>
+
+  <Accordion title="Production hardening">
+    ```markdown Prompt
+    Harden UltraBalancer for production:
+
+    1. Create dedicated user:
+       ```bash
+       sudo useradd -r -s /bin/false -M ultrabalancer
+       ```
+
+    2. Set file permissions:
+       ```bash
+       sudo chown root:ultrabalancer /usr/local/bin/ultrabalancer
+       sudo chmod 750 /usr/local/bin/ultrabalancer
+       sudo chown -R ultrabalancer:ultrabalancer /etc/ultrabalancer
+       sudo chmod 640 /etc/ultrabalancer/config.yaml
+       ```
+
+    3. Update systemd service to run as unprivileged user
+
+    4. Setup log rotation at /etc/logrotate.d/ultrabalancer:
+       ```
+       /var/log/ultrabalancer/*.log {
+           daily
+           missingok
+           rotate 14
+           compress
+           delaycompress
+           notifempty
+           create 0640 ultrabalancer ultrabalancer
+       }
+       ```
+
+    5. Configure firewall (allow only necessary ports)
+
+    6. Set resource limits in systemd service:
+       ```ini
+       [Service]
+       LimitNOFILE=65536
+       LimitNPROC=4096
+       ```
+
+    Apply all hardening steps and verify security.
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Tips for AI Agents
+
+<Tip>
+**Be Specific**: Instead of "install ultrabalancer", say "install ultrabalancer from source on Ubuntu 22.04 using cargo"
+</Tip>
+
+<Tip>
+**Include Context**: Mention the repository URL (https://github.com/bas3line/ultrabalancer) in your prompt
+</Tip>
+
+<Tip>
+**Request Verification**: Always ask the AI to verify the installation with `ultrabalancer --version` and `ultrabalancer info`
+</Tip>
+
+<Tip>
+**Show Errors**: If something fails, paste the full error message to the AI agent for debugging
+</Tip>
+
+## Example Complete Deployment Prompt
+
+```markdown
+Deploy UltraBalancer load balancer on my Ubuntu 22.04 production server:
+
+Repository: https://github.com/bas3line/ultrabalancer
+
+Requirements:
+- Build from source using Rust/Cargo
+- Install to /usr/local/bin
+- Configuration file: /etc/ultrabalancer/config.yaml
+- Listen on port 80
+- Load balance across these backends:
+  * 10.0.1.10:8080 (weight 200)
+  * 10.0.1.11:8080 (weight 100)
+  * 10.0.1.12:8080 (weight 100)
+- Use least-connections algorithm
+- Health checks every 5 seconds, max 3 failures
+- Run as systemd service
+- Start on boot
+- Run as unprivileged user 'ultrabalancer'
+
+Steps needed:
+1. Install Rust and dependencies
+2. Clone and build UltraBalancer
+3. Create user and directories
+4. Create configuration file
+5. Create and enable systemd service
+6. Configure firewall
+7. Start service and verify it's working
+8. Test with curl and show health/metrics
+
+Please execute all steps and show me the output of each command, including:
+- ultrabalancer --version
+- curl localhost/health
+- curl localhost/metrics
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    All configuration options
+  </Card>
+  <Card title="Deployment Guides" icon="server" href="/deployment/linux-server">
+    Detailed deployment tutorials
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Set up monitoring and alerts
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>

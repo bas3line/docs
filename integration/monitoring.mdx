@@ -1,0 +1,459 @@
+---
+title: 'Monitoring Setup'
+description: 'Complete monitoring setup with Prometheus, Grafana, alerts, and dashboards for UltraBalancer'
+icon: 'display'
+---
+
+## Overview
+
+Set up comprehensive monitoring for UltraBalancer using Prometheus for metrics collection and Grafana for visualization.
+
+<CardGroup cols={2}>
+  <Card title="Prometheus" icon="chart-simple">
+    Metrics collection and storage
+  </Card>
+  <Card title="Grafana" icon="chart-line">
+    Dashboards and visualization
+  </Card>
+  <Card title="Alertmanager" icon="bell">
+    Alert routing and notification
+  </Card>
+  <Card title="Node Exporter" icon="server">
+    System metrics collection
+  </Card>
+</CardGroup>
+
+## Prometheus Setup
+
+### Installation
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    # Download Prometheus
+    wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
+    tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
+    sudo mv prometheus-2.45.0.linux-amd64 /opt/prometheus
+    sudo ln -s /opt/prometheus/prometheus /usr/local/bin/
+
+    # Create user
+    sudo useradd -r -s /bin/false prometheus
+
+    # Create directories
+    sudo mkdir -p /etc/prometheus /var/lib/prometheus
+    sudo chown prometheus:prometheus /var/lib/prometheus
+    ```
+  </Tab>
+
+  <Tab title="Docker">
+    ```yaml docker-compose.yml
+    version: '3.8'
+
+    services:
+      prometheus:
+        image: prom/prometheus:latest
+        container_name: prometheus
+        ports:
+          - "9090:9090"
+        volumes:
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml
+          - prometheus-data:/prometheus
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+        restart: unless-stopped
+
+      grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        ports:
+          - "3000:3000"
+        volumes:
+          - grafana-data:/var/lib/grafana
+        environment:
+          - GF_SECURITY_ADMIN_PASSWORD=admin
+        restart: unless-stopped
+
+    volumes:
+      prometheus-data:
+      grafana-data:
+    ```
+  </Tab>
+
+  <Tab title="Kubernetes">
+    ```bash
+    # Using Helm
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo update
+
+    # Install Prometheus Operator
+    helm install prometheus prometheus-community/kube-prometheus-stack \
+      --namespace monitoring \
+      --create-namespace
+
+    # Access Prometheus
+    kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+
+    # Access Grafana
+    kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+    ```
+  </Tab>
+</Tabs>
+
+### Configuration
+
+```yaml prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # UltraBalancer
+  - job_name: 'ultrabalancer'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/prometheus'
+    scrape_interval: 5s
+
+  # Node Exporter (system metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+```
+
+### Systemd Service
+
+```ini /etc/systemd/system/prometheus.service
+[Unit]
+Description=Prometheus
+After=network.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus \
+  --web.console.templates=/opt/prometheus/consoles \
+  --web.console.libraries=/opt/prometheus/console_libraries
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Grafana Setup
+
+### Installation
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install -y software-properties-common
+sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install grafana
+
+# Start service
+sudo systemctl enable grafana-server
+sudo systemctl start grafana-server
+```
+
+### Dashboard Configuration
+
+```json ultrabalancer-dashboard.json
+{
+  "dashboard": {
+    "title": "UltraBalancer Monitoring",
+    "panels": [
+      {
+        "title": "Requests Per Second",
+        "targets": [
+          {
+            "expr": "rate(ultrabalancer_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Response Time Percentiles",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
+            "legendFormat": "p99"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "100 * rate(ultrabalancer_requests_failed[5m]) / rate(ultrabalancer_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Backend Health",
+        "targets": [
+          {
+            "expr": "ultrabalancer_backend_healthy"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Alerting
+
+### Alert Rules
+
+```yaml /etc/prometheus/rules/ultrabalancer.yml
+groups:
+  - name: ultrabalancer
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          100 * (
+            rate(ultrabalancer_requests_failed[5m]) /
+            rate(ultrabalancer_requests_total[5m])
+          ) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # Slow response time
+      - alert: SlowResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(ultrabalancer_response_time_seconds_bucket[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time"
+          description: "p95 response time is {{ $value }}s"
+
+      # Backend down
+      - alert: BackendDown
+        expr: ultrabalancer_backend_healthy == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend {{ $labels.backend }} is down"
+          description: "Backend unhealthy for 1 minute"
+
+      # All backends down
+      - alert: AllBackendsDown
+        expr: sum(ultrabalancer_backend_healthy) == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "All backends are down"
+          description: "Load balancer has no healthy backends"
+
+      # High connection count
+      - alert: HighConnectionCount
+        expr: sum(ultrabalancer_backend_active_connections) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High connection count"
+          description: "Active connections: {{ $value }}"
+```
+
+### Alertmanager Configuration
+
+```yaml alertmanager.yml
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'cluster']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  routes:
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+
+    - match:
+        severity: warning
+      receiver: 'slack'
+
+receivers:
+  - name: 'default'
+    email_configs:
+      - to: 'ops@example.com'
+        from: 'alertmanager@example.com'
+        smarthost: 'smtp.gmail.com:587'
+        auth_username: 'alerts@example.com'
+        auth_password: 'password'
+
+  - name: 'slack'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+        channel: '#alerts'
+        title: 'UltraBalancer Alert'
+
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+```
+
+## Complete Monitoring Stack
+
+```yaml docker-compose-monitoring.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.yaml:/etc/ultrabalancer/config.yaml
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
+```
+
+## Key Metrics to Monitor
+
+### Request Metrics
+
+```promql
+# Requests per second
+rate(ultrabalancer_requests_total[5m])
+
+# Success rate
+100 * rate(ultrabalancer_requests_successful[5m]) / rate(ultrabalancer_requests_total[5m])
+
+# Error rate
+rate(ultrabalancer_requests_failed[5m])
+```
+
+### Latency Metrics
+
+```promql
+# Average response time
+rate(ultrabalancer_response_time_seconds_sum[5m]) / rate(ultrabalancer_response_time_seconds_count[5m])
+
+# p95 latency
+histogram_quantile(0.95, rate(ultrabalancer_response_time_seconds_bucket[5m]))
+
+# p99 latency
+histogram_quantile(0.99, rate(ultrabalancer_response_time_seconds_bucket[5m]))
+```
+
+### Backend Health
+
+```promql
+# Healthy backends
+sum(ultrabalancer_backend_healthy)
+
+# Backend requests distribution
+sum by (backend) (rate(ultrabalancer_backend_requests_total[5m]))
+
+# Backend response time
+avg by (backend) (ultrabalancer_backend_avg_response_time)
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Metrics" icon="chart-line" href="/concepts/metrics">
+    Understanding metrics
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/prometheus">
+    Prometheus endpoint documentation
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Debug monitoring issues
+  </Card>
+  <Card title="Performance Tuning" icon="gauge-high" href="/advanced/performance-tuning">
+    Optimize performance
+  </Card>
+</CardGroup>

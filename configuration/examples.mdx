@@ -1,0 +1,823 @@
+---
+title: 'Configuration Examples'
+description: 'Real-world configuration examples for common use cases and deployment scenarios'
+icon: 'list-check'
+---
+
+## Overview
+
+This page provides production-ready configuration examples for common deployment scenarios. Copy and adapt these configurations for your infrastructure.
+
+<CardGroup cols={2}>
+  <Card title="Microservices" icon="sitemap">
+    Load balance across microservice instances
+  </Card>
+  <Card title="API Gateway" icon="server">
+    API gateway configuration
+  </Card>
+  <Card title="High Availability" icon="shield">
+    Multi-region high-availability setup
+  </Card>
+  <Card title="Development" icon="code">
+    Local development configuration
+  </Card>
+</CardGroup>
+
+## Common Scenarios
+
+### Simple Web Application
+
+Basic setup for a web application with 3 backend servers:
+
+<CodeGroup>
+
+```yaml Simple Web App
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "round-robin"
+
+backends:
+  - host: "web1.internal"
+    port: 8080
+  - host: "web2.internal"
+    port: 8080
+  - host: "web3.internal"
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/health"
+
+logging:
+  level: "info"
+  format: "json"
+```
+
+```bash CLI Equivalent
+ultrabalancer \
+  --port 80 \
+  --algorithm round-robin \
+  --backend web1.internal:8080 \
+  --backend web2.internal:8080 \
+  --backend web3.internal:8080 \
+  --health-check-path /health \
+  --log-format json
+```
+
+</CodeGroup>
+
+### API Gateway
+
+Load balancer as an API gateway with multiple services:
+
+```yaml config-api-gateway.yaml
+listen_address: "0.0.0.0"
+listen_port: 443
+algorithm: "least-connections"
+max_connections: 50000
+
+# User service backends
+backends:
+  - host: "user-service-1.prod.internal"
+    port: 8080
+    weight: 100
+  - host: "user-service-2.prod.internal"
+    port: 8080
+    weight: 100
+
+health_check:
+  enabled: true
+  interval_ms: 3000
+  timeout_ms: 1500
+  max_failures: 3
+  path: "/api/health"
+
+timeout:
+  connect_ms: 3000
+  request_ms: 30000
+  idle_ms: 60000
+
+tls:
+  enabled: true
+  cert_path: "/etc/ssl/certs/api.example.com.crt"
+  key_path: "/etc/ssl/private/api.example.com.key"
+  min_version: "1.3"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/api-gateway.log"
+
+metrics:
+  enabled: true
+  endpoint: "/metrics"
+  prometheus_endpoint: "/prometheus"
+```
+
+### Microservices Architecture
+
+Configuration for microservices with different weights:
+
+```yaml config-microservices.yaml
+listen_address: "0.0.0.0"
+listen_port: 8080
+algorithm: "weighted"
+workers: auto
+
+# Mix of different instance types
+backends:
+  # High-performance instances
+  - host: "ms-large-1.internal"
+    port: 8080
+    weight: 300              # 3x capacity
+    max_connections: 3000
+
+  - host: "ms-large-2.internal"
+    port: 8080
+    weight: 300
+    max_connections: 3000
+
+  # Standard instances
+  - host: "ms-medium-1.internal"
+    port: 8080
+    weight: 200              # 2x capacity
+    max_connections: 2000
+
+  - host: "ms-medium-2.internal"
+    port: 8080
+    weight: 200
+    max_connections: 2000
+
+  # Small instances
+  - host: "ms-small-1.internal"
+    port: 8080
+    weight: 100              # 1x capacity
+    max_connections: 1000
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  max_failures: 3
+  path: "/actuator/health"
+
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 2
+    timeout_seconds: 30
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/microservices.log"
+```
+
+### Session Affinity (Sticky Sessions)
+
+Use IP hash for session persistence:
+
+```yaml config-sticky-sessions.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "ip-hash"         # Same client → same backend
+
+backends:
+  - host: "app1.internal"
+    port: 8080
+  - host: "app2.internal"
+    port: 8080
+  - host: "app3.internal"
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/health"
+
+timeout:
+  connect_ms: 5000
+  request_ms: 60000          # Longer for sessions
+  idle_ms: 120000
+
+logging:
+  level: "info"
+  format: "json"
+```
+
+### High-Availability Setup
+
+Multi-region HA configuration with circuit breaker:
+
+```yaml config-ha.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "least-connections"
+workers: 16
+max_connections: 100000
+
+backends:
+  # Primary region (us-east-1)
+  - host: "app-useast1a-1.prod.internal"
+    port: 8080
+    weight: 150
+    max_connections: 5000
+
+  - host: "app-useast1a-2.prod.internal"
+    port: 8080
+    weight: 150
+    max_connections: 5000
+
+  - host: "app-useast1b-1.prod.internal"
+    port: 8080
+    weight: 150
+    max_connections: 5000
+
+  # Failover region (us-west-2)
+  - host: "app-uswest2a-1.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 3000
+
+  - host: "app-uswest2a-2.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 3000
+
+health_check:
+  enabled: true
+  interval_ms: 2000          # Fast detection
+  timeout_ms: 1000
+  max_failures: 2
+
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 3
+    timeout_seconds: 60
+    half_open_requests: 5
+
+timeout:
+  connect_ms: 3000
+  request_ms: 30000
+  idle_ms: 60000
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/ha.log"
+  max_size_mb: 500
+  max_files: 30
+
+metrics:
+  enabled: true
+```
+
+## Environment-Specific Configurations
+
+### Development
+
+```yaml config-dev.yaml
+listen_address: "127.0.0.1"
+listen_port: 8080
+algorithm: "round-robin"
+
+backends:
+  - host: "localhost"
+    port: 3001
+  - host: "localhost"
+    port: 3002
+
+health_check:
+  enabled: true
+  interval_ms: 10000         # Less aggressive
+  max_failures: 5            # More tolerant
+
+timeout:
+  connect_ms: 10000          # Generous timeouts
+  request_ms: 60000
+
+logging:
+  level: "debug"             # Verbose logging
+  format: "text"             # Human-readable
+  output: "stdout"
+```
+
+### Staging
+
+```yaml config-staging.yaml
+listen_address: "0.0.0.0"
+listen_port: 8080
+algorithm: "least-connections"
+workers: 4
+
+backends:
+  - host: "backend1.staging.internal"
+    port: 8080
+  - host: "backend2.staging.internal"
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/health"
+
+timeout:
+  connect_ms: 5000
+  request_ms: 30000
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/staging.log"
+
+metrics:
+  enabled: true
+```
+
+### Production
+
+```yaml config-prod.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "least-connections"
+workers: auto
+max_connections: 50000
+
+backends:
+  - host: "backend1.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 2000
+
+  - host: "backend2.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 2000
+
+  - host: "backend3.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 2000
+
+health_check:
+  enabled: true
+  interval_ms: 3000
+  timeout_ms: 1500
+  max_failures: 3
+  path: "/health"
+
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 2
+    timeout_seconds: 60
+
+timeout:
+  connect_ms: 5000
+  request_ms: 30000
+  idle_ms: 60000
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/prod.log"
+  max_size_mb: 100
+  max_files: 30
+
+metrics:
+  enabled: true
+```
+
+## Cloud Provider Configurations
+
+### AWS
+
+<Tabs>
+  <Tab title="EC2 Instances">
+    ```yaml config-aws-ec2.yaml
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "least-connections"
+
+    backends:
+      # Private subnet instances
+      - host: "10.0.1.10"     # us-east-1a
+        port: 8080
+        weight: 100
+
+      - host: "10.0.1.11"     # us-east-1a
+        port: 8080
+        weight: 100
+
+      - host: "10.0.2.10"     # us-east-1b
+        port: 8080
+        weight: 100
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+      path: "/health"
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "/var/log/ultrabalancer/access.log"
+    ```
+  </Tab>
+
+  <Tab title="ECS Tasks">
+    ```yaml config-aws-ecs.yaml
+    listen_address: "0.0.0.0"
+    listen_port: 8080
+    algorithm: "least-connections"
+
+    # Service discovery backends
+    backends:
+      - host: "service.prod.local"  # ECS Service Discovery
+        port: 8080
+        weight: 100
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+      path: "/health"
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"  # CloudWatch Logs
+    ```
+  </Tab>
+
+  <Tab title="Lambda Integration">
+    ```yaml config-aws-lambda.yaml
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "round-robin"
+
+    backends:
+      # Lambda Function URLs
+      - host: "abc123.lambda-url.us-east-1.on.aws"
+        port: 443
+
+      - host: "def456.lambda-url.us-east-1.on.aws"
+        port: 443
+
+    health_check:
+      enabled: true
+      interval_ms: 10000
+      path: "/health"
+
+    tls:
+      enabled: true  # HTTPS to Lambda
+    ```
+  </Tab>
+</Tabs>
+
+### Google Cloud Platform
+
+```yaml config-gcp.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "least-connections"
+
+backends:
+  # Compute Engine instances
+  - host: "10.128.0.2"        # us-central1-a
+    port: 8080
+
+  - host: "10.128.0.3"        # us-central1-a
+    port: 8080
+
+  - host: "10.132.0.2"        # us-central1-b
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/health"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"  # Cloud Logging
+```
+
+### Azure
+
+```yaml config-azure.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "least-connections"
+
+backends:
+  # VM Scale Set instances
+  - host: "10.0.1.4"          # Availability Zone 1
+    port: 8080
+
+  - host: "10.0.1.5"          # Availability Zone 1
+    port: 8080
+
+  - host: "10.0.2.4"          # Availability Zone 2
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/api/health"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/access.log"
+```
+
+### DigitalOcean
+
+```yaml config-digitalocean.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "round-robin"
+
+backends:
+  # Droplets in same VPC
+  - host: "10.116.0.2"
+    port: 8080
+
+  - host: "10.116.0.3"
+    port: 8080
+
+  - host: "10.116.0.4"
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/health"
+
+logging:
+  level: "info"
+  format: "json"
+```
+
+## Special Use Cases
+
+### WebSocket Support
+
+```yaml config-websocket.yaml
+listen_address: "0.0.0.0"
+listen_port: 8080
+algorithm: "ip-hash"         # Sticky sessions for WebSocket
+
+backends:
+  - host: "ws1.internal"
+    port: 8080
+  - host: "ws2.internal"
+    port: 8080
+
+timeout:
+  connect_ms: 5000
+  request_ms: 300000         # 5 minutes for long-lived connections
+  idle_ms: 600000            # 10 minutes idle timeout
+
+health_check:
+  enabled: true
+  interval_ms: 10000
+  path: "/ws/health"
+```
+
+### gRPC Services
+
+```yaml config-grpc.yaml
+listen_address: "0.0.0.0"
+listen_port: 50051
+algorithm: "least-connections"
+
+backends:
+  - host: "grpc-service-1.internal"
+    port: 50051
+  - host: "grpc-service-2.internal"
+    port: 50051
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  path: "/grpc.health.v1.Health/Check"
+
+timeout:
+  connect_ms: 3000
+  request_ms: 30000
+```
+
+### Container Orchestration
+
+<Tabs>
+  <Tab title="Docker Compose">
+    ```yaml docker-compose.yml
+    version: '3.8'
+
+    services:
+      ultrabalancer:
+        image: ultrabalancer/ultrabalancer:latest
+        ports:
+          - "80:8080"
+        volumes:
+          - ./config.yaml:/etc/ultrabalancer/config.yaml
+        command: --config /etc/ultrabalancer/config.yaml
+
+      backend1:
+        image: myapp:latest
+        expose:
+          - "8080"
+
+      backend2:
+        image: myapp:latest
+        expose:
+          - "8080"
+
+      backend3:
+        image: myapp:latest
+        expose:
+          - "8080"
+    ```
+
+    ```yaml config.yaml
+    listen_address: "0.0.0.0"
+    listen_port: 8080
+    algorithm: "round-robin"
+
+    backends:
+      - host: "backend1"
+        port: 8080
+      - host: "backend2"
+        port: 8080
+      - host: "backend3"
+        port: 8080
+    ```
+  </Tab>
+
+  <Tab title="Kubernetes">
+    ```yaml k8s-config.yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: ultrabalancer-config
+    data:
+      config.yaml: |
+        listen_address: "0.0.0.0"
+        listen_port: 8080
+        algorithm: "least-connections"
+
+        backends:
+          - host: "backend-service"
+            port: 8080
+
+        health_check:
+          enabled: true
+          interval_ms: 5000
+          path: "/health"
+
+        logging:
+          level: "info"
+          format: "json"
+    ```
+  </Tab>
+
+  <Tab title="Nomad">
+    ```hcl nomad-job.hcl
+    job "ultrabalancer" {
+      datacenters = ["dc1"]
+
+      group "lb" {
+        count = 1
+
+        task "ultrabalancer" {
+          driver = "docker"
+
+          config {
+            image = "ultrabalancer/ultrabalancer:latest"
+            port_map {
+              http = 8080
+            }
+          }
+
+          template {
+            data = <<EOF
+    listen_address: "0.0.0.0"
+    listen_port: 8080
+    algorithm: "round-robin"
+
+    backends:
+      {{- range service "backend" }}
+      - host: "{{ .Address }}"
+        port: {{ .Port }}
+      {{- end }}
+    EOF
+            destination = "local/config.yaml"
+          }
+
+          env {
+            ULTRA_CONFIG = "local/config.yaml"
+          }
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Blue-Green Deployment
+
+```yaml config-blue-green.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "weighted"
+
+backends:
+  # Blue environment (current production)
+  - host: "blue-1.internal"
+    port: 8080
+    weight: 100              # 100% traffic
+
+  - host: "blue-2.internal"
+    port: 8080
+    weight: 100
+
+  # Green environment (new version, no traffic)
+  - host: "green-1.internal"
+    port: 8080
+    weight: 0                # 0% traffic initially
+
+  - host: "green-2.internal"
+    port: 8080
+    weight: 0
+
+health_check:
+  enabled: true
+  interval_ms: 3000
+```
+
+**Switching traffic to green:**
+
+```yaml
+# Update weights and reload
+backends:
+  - host: "blue-1.internal"
+    weight: 0                # 0% traffic
+  - host: "blue-2.internal"
+    weight: 0
+  - host: "green-1.internal"
+    weight: 100              # 100% traffic
+  - host: "green-2.internal"
+    weight: 100
+```
+
+```bash
+# Reload configuration
+kill -HUP $(pidof ultrabalancer)
+```
+
+### Canary Deployment
+
+```yaml config-canary.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "weighted"
+
+backends:
+  # Stable version (95% traffic)
+  - host: "stable-1.internal"
+    port: 8080
+    weight: 475
+
+  - host: "stable-2.internal"
+    port: 8080
+    weight: 475
+
+  # Canary version (5% traffic)
+  - host: "canary-1.internal"
+    port: 8080
+    weight: 50
+
+health_check:
+  enabled: true
+  interval_ms: 3000
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Configuration Overview" icon="sliders" href="/configuration/overview">
+    Learn about all configuration methods
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/configuration/cli-reference">
+    Command-line interface documentation
+  </Card>
+  <Card title="File Config" icon="file-code" href="/configuration/file-config">
+    Complete YAML/TOML reference
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/deployment/linux-server">
+    Deploy UltraBalancer in production
+  </Card>
+</CardGroup>

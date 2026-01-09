@@ -1,0 +1,311 @@
+---
+title: '/metrics Endpoint'
+description: 'JSON metrics endpoint documentation with response format and examples'
+icon: 'chart-simple'
+---
+
+## Overview
+
+The `/metrics` endpoint returns real-time load balancer metrics in JSON format for easy integration with monitoring systems and custom dashboards.
+
+**Endpoint:** `GET /metrics`
+
+**Response Format:** `application/json`
+
+**Authentication:** None (configure firewall rules to restrict access)
+
+## Request
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+## Response Format
+
+```json
+{
+  "total_requests": 1547823,
+  "successful_requests": 1542891,
+  "failed_requests": 4932,
+  "avg_response_time_ms": 12.45,
+  "min_response_time_ms": 1.23,
+  "max_response_time_ms": 234.56,
+  "p50_response_time_ms": 10.12,
+  "p95_response_time_ms": 28.45,
+  "p99_response_time_ms": 45.67,
+  "uptime_seconds": 86400,
+  "requests_per_second": 17.91,
+  "algorithm": "least-connections",
+  "backends": [
+    {
+      "address": "192.168.1.10:8080",
+      "healthy": true,
+      "active_connections": 42,
+      "total_requests": 515941,
+      "failures": 0,
+      "avg_response_time_ms": 11.23,
+      "circuit_state": "closed"
+    }
+  ]
+}
+```
+
+## Fields Reference
+
+### Global Metrics
+
+<ParamField path="total_requests" type="integer">
+  Total number of requests processed since startup
+</ParamField>
+
+<ParamField path="successful_requests" type="integer">
+  Number of successful requests (2xx, 3xx status codes)
+</ParamField>
+
+<ParamField path="failed_requests" type="integer">
+  Number of failed requests (4xx, 5xx, timeouts)
+</ParamField>
+
+<ParamField path="avg_response_time_ms" type="float">
+  Average response time in milliseconds
+</ParamField>
+
+<ParamField path="min_response_time_ms" type="float">
+  Minimum response time observed
+</ParamField>
+
+<ParamField path="max_response_time_ms" type="float">
+  Maximum response time observed
+</ParamField>
+
+<ParamField path="p50_response_time_ms" type="float">
+  50th percentile (median) response time
+</ParamField>
+
+<ParamField path="p95_response_time_ms" type="float">
+  95th percentile response time
+</ParamField>
+
+<ParamField path="p99_response_time_ms" type="float">
+  99th percentile response time
+</ParamField>
+
+<ParamField path="uptime_seconds" type="integer">
+  Load balancer uptime in seconds
+</ParamField>
+
+<ParamField path="requests_per_second" type="float">
+  Current requests per second rate
+</ParamField>
+
+<ParamField path="algorithm" type="string">
+  Active load balancing algorithm
+</ParamField>
+
+### Backend Metrics
+
+<ParamField path="backends[].address" type="string">
+  Backend server address (host:port)
+</ParamField>
+
+<ParamField path="backends[].healthy" type="boolean">
+  Health status (true = healthy, false = unhealthy)
+</ParamField>
+
+<ParamField path="backends[].active_connections" type="integer">
+  Current number of active connections to this backend
+</ParamField>
+
+<ParamField path="backends[].total_requests" type="integer">
+  Total requests sent to this backend
+</ParamField>
+
+<ParamField path="backends[].failures" type="integer">
+  Current failure count (resets on successful health check)
+</ParamField>
+
+<ParamField path="backends[].avg_response_time_ms" type="float">
+  Average response time for this backend
+</ParamField>
+
+<ParamField path="backends[].circuit_state" type="string">
+  Circuit breaker state: `closed`, `open`, or `half_open`
+</ParamField>
+
+## Usage Examples
+
+### Python
+
+```python
+import requests
+import json
+
+response = requests.get('http://localhost:8080/metrics')
+metrics = response.json()
+
+print(f"Total Requests: {metrics['total_requests']}")
+print(f"Success Rate: {metrics['successful_requests'] / metrics['total_requests'] * 100:.2f}%")
+print(f"Avg Response Time: {metrics['avg_response_time_ms']:.2f}ms")
+print(f"p95 Latency: {metrics['p95_response_time_ms']:.2f}ms")
+
+# Check backend health
+healthy_backends = sum(1 for b in metrics['backends'] if b['healthy'])
+print(f"Healthy Backends: {healthy_backends}/{len(metrics['backends'])}")
+```
+
+### JavaScript/Node.js
+
+```javascript
+const axios = require('axios');
+
+async function getMetrics() {
+  const response = await axios.get('http://localhost:8080/metrics');
+  const metrics = response.data;
+
+  console.log(`Total Requests: ${metrics.total_requests}`);
+  console.log(`Success Rate: ${(metrics.successful_requests / metrics.total_requests * 100).toFixed(2)}%`);
+  console.log(`Avg Response Time: ${metrics.avg_response_time_ms.toFixed(2)}ms`);
+
+  // Check for unhealthy backends
+  const unhealthy = metrics.backends.filter(b => !b.healthy);
+  if (unhealthy.length > 0) {
+    console.error(`Unhealthy backends: ${unhealthy.map(b => b.address).join(', ')}`);
+  }
+}
+
+getMetrics();
+```
+
+### Go
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type Metrics struct {
+    TotalRequests       int64   `json:"total_requests"`
+    SuccessfulRequests  int64   `json:"successful_requests"`
+    FailedRequests      int64   `json:"failed_requests"`
+    AvgResponseTimeMs   float64 `json:"avg_response_time_ms"`
+    P95ResponseTimeMs   float64 `json:"p95_response_time_ms"`
+}
+
+func main() {
+    resp, _ := http.Get("http://localhost:8080/metrics")
+    defer resp.Body.Close()
+
+    var metrics Metrics
+    json.NewDecoder(resp.Body).Decode(&metrics)
+
+    successRate := float64(metrics.SuccessfulRequests) / float64(metrics.TotalRequests) * 100
+    fmt.Printf("Total Requests: %d\n", metrics.TotalRequests)
+    fmt.Printf("Success Rate: %.2f%%\n", successRate)
+    fmt.Printf("Avg Response Time: %.2fms\n", metrics.AvgResponseTimeMs)
+}
+```
+
+### Bash/cURL
+
+```bash
+# Pretty print JSON
+curl -s http://localhost:8080/metrics | jq
+
+# Get specific metrics
+RPS=$(curl -s http://localhost:8080/metrics | jq -r '.requests_per_second')
+echo "Current RPS: $RPS"
+
+# Check backend health
+curl -s http://localhost:8080/metrics | jq -r '.backends[] | select(.healthy == false) | .address'
+
+# Monitor metrics in real-time
+watch -n 1 'curl -s http://localhost:8080/metrics | jq "{rps: .requests_per_second, latency: .avg_response_time_ms, healthy: [.backends[] | select(.healthy == true)] | length}"'
+```
+
+## Integration Examples
+
+### Custom Dashboard
+
+```javascript
+// React component example
+import React, { useState, useEffect } from 'react';
+
+function MetricsDashboard() {
+  const [metrics, setMetrics] = useState(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const response = await fetch('http://localhost:8080/metrics');
+      const data = await response.json();
+      setMetrics(data);
+    };
+
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 5000); // Update every 5s
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!metrics) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h2>UltraBalancer Metrics</h2>
+      <div>RPS: {metrics.requests_per_second.toFixed(2)}</div>
+      <div>Avg Latency: {metrics.avg_response_time_ms.toFixed(2)}ms</div>
+      <div>Success Rate: {(metrics.successful_requests / metrics.total_requests * 100).toFixed(2)}%</div>
+    </div>
+  );
+}
+```
+
+### Alerting Script
+
+```python
+import requests
+import time
+
+METRICS_URL = "http://localhost:8080/metrics"
+ERROR_THRESHOLD = 5.0  # 5% error rate
+LATENCY_THRESHOLD = 500  # 500ms
+
+while True:
+    metrics = requests.get(METRICS_URL).json()
+
+    # Check error rate
+    error_rate = (metrics['failed_requests'] / metrics['total_requests']) * 100
+    if error_rate > ERROR_THRESHOLD:
+        print(f"ALERT: High error rate: {error_rate:.2f}%")
+
+    # Check latency
+    if metrics['p95_response_time_ms'] > LATENCY_THRESHOLD:
+        print(f"ALERT: High latency: {metrics['p95_response_time_ms']:.2f}ms")
+
+    # Check backend health
+    unhealthy = [b for b in metrics['backends'] if not b['healthy']]
+    if unhealthy:
+        print(f"ALERT: Unhealthy backends: {[b['address'] for b in unhealthy]}")
+
+    time.sleep(30)
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Prometheus Endpoint" icon="chart-simple" href="/api-reference/prometheus">
+    Prometheus metrics format
+  </Card>
+  <Card title="Monitoring Setup" icon="display" href="/integration/monitoring">
+    Complete monitoring guide
+  </Card>
+  <Card title="Metrics Concept" icon="chart-line" href="/concepts/metrics">
+    Understanding metrics
+  </Card>
+  <Card title="Health Checks" icon="heart-pulse" href="/concepts/health-checks">
+    Health check system
+  </Card>
+</CardGroup>

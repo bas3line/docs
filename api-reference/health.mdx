@@ -1,0 +1,229 @@
+---
+title: 'Health Endpoint'
+api: 'GET /health'
+description: 'Check load balancer and backend health status'
+---
+
+## Overview
+
+The `/health` endpoint provides real-time information about the load balancer's operational status and backend server health.
+
+## Endpoint
+
+```
+GET /health
+```
+
+## Response
+
+<ResponseField name="status" type="string">
+  Overall health status
+  - `ok`: Load balancer is operating normally
+  - `degraded`: Some backends are down but service continues
+  - `down`: No healthy backends available
+</ResponseField>
+
+<ResponseField name="healthy_backends" type="string">
+  Ratio of healthy backends (e.g., "3/3" or "2/3")
+</ResponseField>
+
+<ResponseField name="uptime_seconds" type="number">
+  Load balancer uptime in seconds since start
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl http://localhost:8080/health
+```
+
+```javascript Node.js
+const response = await fetch('http://localhost:8080/health');
+const health = await response.json();
+console.log(health);
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:8080/health')
+health = response.json()
+print(health)
+```
+
+```go Go
+resp, err := http.Get("http://localhost:8080/health")
+if err != nil {
+    log.Fatal(err)
+}
+defer resp.Body.Close()
+
+var health map[string]interface{}
+json.NewDecoder(resp.Body).Decode(&health)
+```
+
+</CodeGroup>
+
+## Example Response
+
+### All Backends Healthy
+
+```json 200 OK
+{
+  "status": "ok",
+  "healthy_backends": "3/3",
+  "uptime_seconds": 3600
+}
+```
+
+### Degraded State
+
+```json 200 OK
+{
+  "status": "degraded",
+  "healthy_backends": "2/3",
+  "uptime_seconds": 7200
+}
+```
+
+### No Healthy Backends
+
+```json 503 Service Unavailable
+{
+  "status": "down",
+  "healthy_backends": "0/3",
+  "uptime_seconds": 1800
+}
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Kubernetes Liveness Probe">
+    ```yaml
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 10
+      periodSeconds: 5
+    ```
+  </Accordion>
+
+  <Accordion title="Docker Healthcheck">
+    ```dockerfile
+    HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
+      CMD curl -f http://localhost:8080/health || exit 1
+    ```
+  </Accordion>
+
+  <Accordion title="Monitoring Script">
+    ```bash
+    #!/bin/bash
+    response=$(curl -s http://localhost:8080/health)
+    status=$(echo $response | jq -r '.status')
+
+    if [ "$status" != "ok" ]; then
+      echo "ALERT: Load balancer unhealthy"
+      # Send alert
+    fi
+    ```
+  </Accordion>
+
+  <Accordion title="Load Balancer Health Check">
+    If you have multiple UltraBalancer instances behind a load balancer:
+    ```nginx
+    upstream ultrabalancer_cluster {
+      server ultra1:8080;
+      server ultra2:8080;
+    }
+
+    # Health check
+    health_check interval=5s fails=3 passes=2 uri=/health;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Status Interpretation
+
+<ResponseField name="ok">
+  All configured backends are healthy. The load balancer is fully operational.
+</ResponseField>
+
+<ResponseField name="degraded">
+  One or more backends are unhealthy, but at least one backend is available. Service continues with reduced capacity.
+</ResponseField>
+
+<ResponseField name="down">
+  No backends are available. The load balancer cannot serve requests.
+</ResponseField>
+
+## Uptime Calculation
+
+The `uptime_seconds` field represents how long the load balancer has been running since its last start. This counter resets to 0 when:
+
+- The process is restarted
+- Configuration is reloaded (in future versions)
+- The system reboots
+
+<Tip>
+  Use this field to track restart frequency and overall stability.
+</Tip>
+
+## Integration Examples
+
+### Prometheus Blackbox Exporter
+
+Monitor health endpoint availability:
+
+```yaml prometheus.yml
+scrape_configs:
+  - job_name: 'ultrabalancer-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://ultrabalancer:8080/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+```
+
+### Grafana Alert
+
+Create alert when health degrades:
+
+```yaml
+alert: UltraBalancerDegraded
+expr: ultrabalancer_healthy_backends_ratio < 1
+for: 5m
+labels:
+  severity: warning
+annotations:
+  summary: "UltraBalancer has unhealthy backends"
+  description: "Only {{ $value }} backends are healthy"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Metrics Endpoint" icon="chart-line" href="/api-reference/metrics">
+    Get detailed performance metrics
+  </Card>
+  <Card title="Health Checks" icon="heart-pulse" href="/concepts/health-checks">
+    Configure health checking
+  </Card>
+  <Card title="Monitoring Guide" icon="display" href="/guides/monitoring">
+    Set up comprehensive monitoring
+  </Card>
+  <Card title="Prometheus" icon="fire" href="/api-reference/prometheus">
+    Prometheus metrics format
+  </Card>
+</CardGroup>

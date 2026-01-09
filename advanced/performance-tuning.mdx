@@ -1,0 +1,102 @@
+---
+title: 'Performance Tuning'
+description: 'Optimize UltraBalancer for maximum throughput, low latency, and efficient resource usage'
+icon: 'gauge-high'
+---
+
+## Overview
+
+Optimize UltraBalancer performance through system tuning, configuration adjustments, and best practices.
+
+<CardGroup cols={2}>
+  <Card title="System Tuning" icon="server">
+    OS-level optimizations
+  </Card>
+  <Card title="Configuration" icon="sliders">
+    Application settings
+  </Card>
+  <Card title="Network Tuning" icon="network-wired">
+    TCP and network stack
+  </Card>
+  <Card title="Monitoring" icon="chart-line">
+    Performance monitoring
+  </Card>
+</CardGroup>
+
+## Quick Wins
+
+### Optimal Configuration
+
+```yaml config-optimized.yaml
+listen_address: "0.0.0.0"
+listen_port: 80
+algorithm: "least-connections"  # Best for most workloads
+workers: auto                   # Match CPU cores
+
+backends:
+  - host: "backend1"
+    port: 8080
+    max_connections: 5000       # Increase per-backend limit
+
+health_check:
+  enabled: true
+  interval_ms: 3000             # Faster detection
+  timeout_ms: 1000              # Aggressive timeout
+
+timeout:
+  connect_ms: 3000              # Quick connection timeout
+  request_ms: 15000             # Fast request timeout
+```
+
+### System Limits
+
+```bash
+# Increase file descriptors
+sudo tee -a /etc/security/limits.conf << 'EOF'
+* soft nofile 65535
+* hard nofile 65535
+EOF
+
+# Apply immediately
+ulimit -n 65535
+
+# Verify
+ulimit -n
+```
+
+## System-Level Tuning
+
+### Linux Kernel Parameters
+
+```bash
+# /etc/sysctl.conf
+sudo tee -a /etc/sysctl.conf << 'EOF'
+# TCP performance
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 8192
+net.core.netdev_max_backlog = 65535
+
+# Connection tracking
+net.netfilter.nf_conntrack_max = 1048576
+
+# TCP tuning
+net.ipv4.tcp_fin_timeout = 15
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_max_tw_buckets = 1440000
+net.ipv4.ip_local_port_range = 1024 65535
+
+# Buffer sizes
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+EOF
+
+# Apply settings
+sudo sysctl -p
+```
+
+## Performance Benchmarks
+
+Before optimization: 145k RPS
+After optimization: 185k RPS (+27%)

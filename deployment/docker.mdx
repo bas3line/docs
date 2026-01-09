@@ -1,0 +1,759 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy UltraBalancer with Docker and Docker Compose for containerized environments'
+icon: 'docker'
+---
+
+## Overview
+
+Deploy UltraBalancer in Docker containers for easy deployment, portability, and orchestration. Official images available for multiple architectures.
+
+<CardGroup cols={2}>
+  <Card title="Official Images" icon="docker">
+    Pre-built multi-arch images
+  </Card>
+  <Card title="Docker Compose" icon="layer-group">
+    Full stack deployment
+  </Card>
+  <Card title="Multi-stage Builds" icon="code-branch">
+    Optimized production images
+  </Card>
+  <Card title="Health Checks" icon="heart-pulse">
+    Container health monitoring
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Run with Docker
+
+```bash
+docker run -d \
+  --name ultrabalancer \
+  -p 80:8080 \
+  ultrabalancer/ultrabalancer:latest \
+  -b backend1:8080 \
+  -b backend2:8080 \
+  -a least-connections
+```
+
+### Run with Config File
+
+```bash
+# Create config file
+cat > config.yaml << 'EOF'
+listen_address: "0.0.0.0"
+listen_port: 8080
+algorithm: "round-robin"
+
+backends:
+  - host: "backend1"
+    port: 8080
+  - host: "backend2"
+    port: 8080
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+EOF
+
+# Run with mounted config
+docker run -d \
+  --name ultrabalancer \
+  -p 80:8080 \
+  -v $(pwd)/config.yaml:/etc/ultrabalancer/config.yaml:ro \
+  ultrabalancer/ultrabalancer:latest \
+  --config /etc/ultrabalancer/config.yaml
+```
+
+## Docker Compose
+
+### Simple Setup
+
+<CodeGroup>
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    container_name: ultrabalancer
+    ports:
+      - "80:8080"
+    command: >
+      -b backend1:8080
+      -b backend2:8080
+      -b backend3:8080
+      -a least-connections
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  backend1:
+    image: nginx:alpine
+    container_name: backend1
+    networks:
+      - app-network
+
+  backend2:
+    image: nginx:alpine
+    container_name: backend2
+    networks:
+      - app-network
+
+  backend3:
+    image: nginx:alpine
+    container_name: backend3
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+```
+
+```bash Run
+# Start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f ultrabalancer
+
+# Stop all services
+docker-compose down
+```
+
+</CodeGroup>
+
+### Production Setup
+
+```yaml docker-compose-prod.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:2.0.0
+    container_name: ultrabalancer
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./config.yaml:/etc/ultrabalancer/config.yaml:ro
+      - ./logs:/var/log/ultrabalancer
+      - ./certs:/etc/ssl/certs:ro
+    command: --config /etc/ultrabalancer/config.yaml
+    environment:
+      - ULTRA_LOG_LEVEL=info
+      - ULTRA_LOG_FORMAT=json
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+  backend1:
+    image: myapp:latest
+    container_name: backend1
+    networks:
+      - backend
+    restart: unless-stopped
+
+  backend2:
+    image: myapp:latest
+    container_name: backend2
+    networks:
+      - backend
+    restart: unless-stopped
+
+  backend3:
+    image: myapp:latest
+    container_name: backend3
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true
+
+volumes:
+  logs:
+    driver: local
+```
+
+### With Monitoring Stack
+
+```yaml docker-compose-monitoring.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    ports:
+      - "80:8080"
+    volumes:
+      - ./config.yaml:/etc/ultrabalancer/config.yaml:ro
+    command: --config /etc/ultrabalancer/config.yaml
+    networks:
+      - app-network
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - monitoring
+
+  backend1:
+    image: myapp:latest
+    networks:
+      - app-network
+
+  backend2:
+    image: myapp:latest
+    networks:
+      - app-network
+
+networks:
+  app-network:
+  monitoring:
+
+volumes:
+  prometheus-data:
+  grafana-data:
+```
+
+## Custom Docker Images
+
+### Dockerfile
+
+<Tabs>
+  <Tab title="Multi-stage Build">
+    ```dockerfile Dockerfile
+    # Build stage
+    FROM rust:1.75-alpine as builder
+
+    WORKDIR /build
+
+    # Install build dependencies
+    RUN apk add --no-cache musl-dev
+
+    # Copy source code
+    COPY . .
+
+    # Build release binary
+    RUN cargo build --release --target x86_64-unknown-linux-musl
+
+    # Runtime stage
+    FROM alpine:latest
+
+    RUN apk add --no-cache ca-certificates
+
+    # Create non-root user
+    RUN adduser -D -u 1000 ultrabalancer
+
+    # Copy binary from builder
+    COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/ultrabalancer /usr/local/bin/
+
+    # Create directories
+    RUN mkdir -p /etc/ultrabalancer /var/log/ultrabalancer && \
+        chown -R ultrabalancer:ultrabalancer /etc/ultrabalancer /var/log/ultrabalancer
+
+    USER ultrabalancer
+
+    EXPOSE 8080
+
+    ENTRYPOINT ["/usr/local/bin/ultrabalancer"]
+    CMD ["--help"]
+    ```
+  </Tab>
+
+  <Tab title="Debian-based">
+    ```dockerfile Dockerfile.debian
+    FROM rust:1.75 as builder
+
+    WORKDIR /build
+
+    COPY . .
+
+    RUN cargo build --release
+
+    FROM debian:bookworm-slim
+
+    RUN apt-get update && \
+        apt-get install -y ca-certificates curl && \
+        rm -rf /var/lib/apt/lists/*
+
+    RUN useradd -r -u 1000 ultrabalancer
+
+    COPY --from=builder /build/target/release/ultrabalancer /usr/local/bin/
+
+    RUN mkdir -p /etc/ultrabalancer /var/log/ultrabalancer && \
+        chown -R ultrabalancer:ultrabalancer /etc/ultrabalancer /var/log/ultrabalancer
+
+    USER ultrabalancer
+
+    EXPOSE 8080
+
+    HEALTHCHECK --interval=30s --timeout=3s \
+      CMD curl -f http://localhost:8080/metrics || exit 1
+
+    ENTRYPOINT ["/usr/local/bin/ultrabalancer"]
+    ```
+  </Tab>
+
+  <Tab title="Scratch (Minimal)">
+    ```dockerfile Dockerfile.scratch
+    FROM rust:1.75 as builder
+
+    WORKDIR /build
+
+    COPY . .
+
+    RUN cargo build --release --target x86_64-unknown-linux-musl
+
+    FROM scratch
+
+    COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/ultrabalancer /ultrabalancer
+    COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+    EXPOSE 8080
+
+    ENTRYPOINT ["/ultrabalancer"]
+    ```
+  </Tab>
+</Tabs>
+
+### Build and Push
+
+```bash
+# Build image
+docker build -t ultrabalancer:latest .
+
+# Tag for registry
+docker tag ultrabalancer:latest myregistry.com/ultrabalancer:2.0.0
+
+# Push to registry
+docker push myregistry.com/ultrabalancer:2.0.0
+
+# Multi-arch build
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ultrabalancer:latest \
+  --push \
+  .
+```
+
+## Docker Networking
+
+### Bridge Network (Default)
+
+```bash
+# Create custom bridge network
+docker network create ultrabalancer-net
+
+# Run containers
+docker run -d \
+  --name ultrabalancer \
+  --network ultrabalancer-net \
+  -p 80:8080 \
+  ultrabalancer/ultrabalancer:latest \
+  -b backend1:8080 \
+  -b backend2:8080
+
+docker run -d \
+  --name backend1 \
+  --network ultrabalancer-net \
+  nginx:alpine
+
+docker run -d \
+  --name backend2 \
+  --network ultrabalancer-net \
+  nginx:alpine
+```
+
+### Host Network
+
+```bash
+# Use host network for maximum performance
+docker run -d \
+  --name ultrabalancer \
+  --network host \
+  ultrabalancer/ultrabalancer:latest \
+  -b localhost:8081 \
+  -b localhost:8082 \
+  -p 80
+```
+
+### Macvlan Network
+
+```bash
+# Create macvlan network
+docker network create -d macvlan \
+  --subnet=192.168.1.0/24 \
+  --gateway=192.168.1.1 \
+  -o parent=eth0 \
+  macvlan-net
+
+# Run with macvlan
+docker run -d \
+  --name ultrabalancer \
+  --network macvlan-net \
+  --ip 192.168.1.100 \
+  ultrabalancer/ultrabalancer:latest \
+  -b 192.168.1.10:8080 \
+  -b 192.168.1.11:8080
+```
+
+## Environment Variables
+
+```bash
+docker run -d \
+  --name ultrabalancer \
+  -p 80:8080 \
+  -e ULTRA_HOST=0.0.0.0 \
+  -e ULTRA_PORT=8080 \
+  -e ULTRA_ALGORITHM=least-connections \
+  -e ULTRA_BACKENDS=backend1:8080,backend2:8080,backend3:8080 \
+  -e ULTRA_HEALTH_CHECK_ENABLED=true \
+  -e ULTRA_HEALTH_CHECK_INTERVAL=5000 \
+  -e ULTRA_LOG_LEVEL=info \
+  -e ULTRA_LOG_FORMAT=json \
+  ultrabalancer/ultrabalancer:latest
+```
+
+## Volume Mounts
+
+```bash
+docker run -d \
+  --name ultrabalancer \
+  -p 80:8080 \
+  -v $(pwd)/config.yaml:/etc/ultrabalancer/config.yaml:ro \
+  -v $(pwd)/logs:/var/log/ultrabalancer \
+  -v $(pwd)/certs:/etc/ssl/certs:ro \
+  ultrabalancer/ultrabalancer:latest \
+  --config /etc/ultrabalancer/config.yaml
+```
+
+## Docker Secrets
+
+```bash
+# Create secret
+echo "my-secret-password" | docker secret create tls_password -
+
+# Use in service
+docker service create \
+  --name ultrabalancer \
+  --secret tls_password \
+  --publish 80:8080 \
+  ultrabalancer/ultrabalancer:latest
+```
+
+## Health Checks
+
+```yaml docker-compose.yml
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+```dockerfile Dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD curl -f http://localhost:8080/metrics || exit 1
+```
+
+## Resource Limits
+
+```yaml docker-compose.yml
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+```
+
+```bash
+docker run -d \
+  --name ultrabalancer \
+  --cpus="2.0" \
+  --memory="2g" \
+  --memory-reservation="1g" \
+  ultrabalancer/ultrabalancer:latest
+```
+
+## Logging
+
+<Tabs>
+  <Tab title="JSON Logs">
+    ```bash
+    docker run -d \
+      --name ultrabalancer \
+      --log-driver json-file \
+      --log-opt max-size=10m \
+      --log-opt max-file=3 \
+      ultrabalancer/ultrabalancer:latest
+    ```
+  </Tab>
+
+  <Tab title="Syslog">
+    ```bash
+    docker run -d \
+      --name ultrabalancer \
+      --log-driver syslog \
+      --log-opt syslog-address=udp://192.168.1.100:514 \
+      ultrabalancer/ultrabalancer:latest
+    ```
+  </Tab>
+
+  <Tab title="Fluentd">
+    ```bash
+    docker run -d \
+      --name ultrabalancer \
+      --log-driver fluentd \
+      --log-opt fluentd-address=localhost:24224 \
+      --log-opt tag="ultrabalancer" \
+      ultrabalancer/ultrabalancer:latest
+    ```
+  </Tab>
+
+  <Tab title="CloudWatch">
+    ```bash
+    docker run -d \
+      --name ultrabalancer \
+      --log-driver awslogs \
+      --log-opt awslogs-region=us-east-1 \
+      --log-opt awslogs-group=ultrabalancer \
+      --log-opt awslogs-stream=prod \
+      ultrabalancer/ultrabalancer:latest
+    ```
+  </Tab>
+</Tabs>
+
+## Docker Swarm
+
+### Deploy Stack
+
+```yaml docker-stack.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    ports:
+      - "80:8080"
+    command: -b backend:8080 -a least-connections
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == worker
+    networks:
+      - overlay-net
+
+  backend:
+    image: nginx:alpine
+    deploy:
+      replicas: 5
+    networks:
+      - overlay-net
+
+networks:
+  overlay-net:
+    driver: overlay
+```
+
+```bash
+# Initialize swarm
+docker swarm init
+
+# Deploy stack
+docker stack deploy -c docker-stack.yml ultrabalancer
+
+# Check services
+docker stack services ultrabalancer
+
+# Check tasks
+docker stack ps ultrabalancer
+
+# Remove stack
+docker stack rm ultrabalancer
+```
+
+## Performance Optimization
+
+### Optimize Docker Settings
+
+```json /etc/docker/daemon.json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "storage-driver": "overlay2",
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 65536,
+      "Soft": 65536
+    }
+  }
+}
+```
+
+```bash
+# Restart Docker daemon
+sudo systemctl restart docker
+```
+
+### Increase Container Limits
+
+```bash
+docker run -d \
+  --name ultrabalancer \
+  --ulimit nofile=65536:65536 \
+  --sysctl net.core.somaxconn=65535 \
+  --sysctl net.ipv4.tcp_max_syn_backlog=8192 \
+  ultrabalancer/ultrabalancer:latest
+```
+
+## Troubleshooting
+
+<Accordion title="Container exits immediately">
+  **Check logs:**
+  ```bash
+  docker logs ultrabalancer
+  ```
+
+  **Common causes:**
+  - Invalid configuration
+  - Missing required arguments
+  - Port already in use
+
+  **Solution:**
+  ```bash
+  # Validate config
+  docker run --rm \
+    -v $(pwd)/config.yaml:/config.yaml \
+    ultrabalancer/ultrabalancer:latest \
+    validate -c /config.yaml
+  ```
+</Accordion>
+
+<Accordion title="Cannot connect to backends">
+  **Check network:**
+  ```bash
+  docker network inspect bridge
+  docker exec ultrabalancer ping backend1
+  ```
+
+  **Solution:**
+  Ensure containers are on same network or use correct hostnames.
+</Accordion>
+
+<Accordion title="Permission denied errors">
+  **Solution:**
+  ```bash
+  # Run as root
+  docker run --user root ultrabalancer/ultrabalancer:latest
+
+  # Or fix volume permissions
+  sudo chown -R 1000:1000 ./logs
+  ```
+</Accordion>
+
+## Security Best Practices
+
+```dockerfile Dockerfile
+# Use non-root user
+USER ultrabalancer
+
+# Read-only root filesystem
+docker run --read-only \
+  --tmpfs /tmp \
+  --tmpfs /var/log/ultrabalancer \
+  ultrabalancer/ultrabalancer:latest
+
+# Drop capabilities
+docker run --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  ultrabalancer/ultrabalancer:latest
+
+# Use security profiles
+docker run --security-opt=no-new-privileges \
+  --security-opt seccomp=seccomp-profile.json \
+  ultrabalancer/ultrabalancer:latest
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+    Deploy on Kubernetes cluster
+  </Card>
+  <Card title="Linux Server" icon="server" href="/deployment/linux-server">
+    Deploy on bare metal Linux
+  </Card>
+  <Card title="Systemd" icon="gear" href="/deployment/systemd">
+    Configure systemd service
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Set up monitoring for Docker
+  </Card>
+</CardGroup>

@@ -1,0 +1,514 @@
+---
+title: 'Local Testing Guide'
+description: 'Test UltraBalancer locally with multiple backend servers and development setups'
+icon: 'flask'
+---
+
+## Overview
+
+Test UltraBalancer on your local machine before deploying to production. This guide covers setting up test backends, validating configurations, and debugging.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt">
+    Get testing in under 5 minutes
+  </Card>
+  <Card title="Multiple Backends" icon="server">
+    Set up test backend servers
+  </Card>
+  <Card title="Docker Testing" icon="docker">
+    Test with Docker containers
+  </Card>
+  <Card title="Debug Mode" icon="bug">
+    Verbose logging for debugging
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Simple Test with Python
+
+<Steps>
+  <Step title="Create Test Backends">
+    ```bash
+    # Terminal 1: Start backend on port 3001
+    python3 -m http.server 3001
+
+    # Terminal 2: Start backend on port 3002
+    python3 -m http.server 3002
+
+    # Terminal 3: Start backend on port 3003
+    python3 -m http.server 3003
+    ```
+  </Step>
+
+  <Step title="Start UltraBalancer">
+    ```bash
+    # Terminal 4: Start load balancer
+    ultrabalancer \
+      -b localhost:3001 \
+      -b localhost:3002 \
+      -b localhost:3003 \
+      -a round-robin \
+      -p 8080 \
+      --log-level debug
+    ```
+  </Step>
+
+  <Step title="Test Requests">
+    ```bash
+    # Make test requests
+    curl http://localhost:8080
+
+    # Watch distribution
+    for i in {1..10}; do
+      curl -s http://localhost:8080 | head -n 1
+      sleep 0.5
+    done
+    ```
+  </Step>
+</Steps>
+
+## Backend Test Servers
+
+### Node.js Backend
+
+<CodeGroup>
+
+```javascript backend.js
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', port });
+});
+
+// Main endpoint
+app.get('*', (req, res) => {
+  res.json({
+    message: `Response from backend on port ${port}`,
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Backend running on port ${port}`);
+});
+```
+
+```bash Run Multiple Instances
+# Start 3 instances
+PORT=3001 node backend.js &
+PORT=3002 node backend.js &
+PORT=3003 node backend.js &
+
+# Start UltraBalancer
+ultrabalancer -b localhost:3001 -b localhost:3002 -b localhost:3003 -p 8080
+```
+
+</CodeGroup>
+
+### Python Backend
+
+```python backend.py
+from flask import Flask, request, jsonify
+import os
+from datetime import datetime
+
+app = Flask(__name__)
+port = int(os.getenv('PORT', 3000))
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'port': port
+    })
+
+@app.route('/')
+def index():
+    return jsonify({
+        'message': f'Response from backend on port {port}',
+        'timestamp': datetime.now().isoformat(),
+        'headers': dict(request.headers)
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=port)
+```
+
+```bash
+# Run multiple instances
+PORT=3001 python backend.py &
+PORT=3002 python backend.py &
+PORT=3003 python backend.py &
+
+# Start UltraBalancer
+ultrabalancer -b localhost:3001 -b localhost:3002 -b localhost:3003
+```
+
+### Go Backend
+
+```go backend.go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+    "time"
+)
+
+type Response struct {
+    Message   string            `json:"message"`
+    Port      string            `json:"port"`
+    Timestamp string            `json:"timestamp"`
+    Headers   map[string]string `json:"headers"`
+}
+
+func main() {
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "3000"
+    }
+
+    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+        json.NewEncoder(w).Encode(map[string]string{
+            "status": "healthy",
+            "port":   port,
+        })
+    })
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        headers := make(map[string]string)
+        for k, v := range r.Header {
+            headers[k] = v[0]
+        }
+
+        response := Response{
+            Message:   fmt.Sprintf("Response from backend on port %s", port),
+            Port:      port,
+            Timestamp: time.Now().Format(time.RFC3339),
+            Headers:   headers,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+    })
+
+    log.Printf("Backend listening on port %s\n", port)
+    log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+```
+
+## Docker Testing
+
+### Docker Compose Setup
+
+```yaml docker-compose.test.yml
+version: '3.8'
+
+services:
+  ultrabalancer:
+    image: ultrabalancer/ultrabalancer:latest
+    ports:
+      - "8080:8080"
+    command: >
+      -b backend1:80
+      -b backend2:80
+      -b backend3:80
+      -a round-robin
+      --log-level debug
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+
+  backend1:
+    image: nginx:alpine
+    volumes:
+      - ./backend1:/usr/share/nginx/html:ro
+
+  backend2:
+    image: nginx:alpine
+    volumes:
+      - ./backend2:/usr/share/nginx/html:ro
+
+  backend3:
+    image: nginx:alpine
+    volumes:
+      - ./backend3:/usr/share/nginx/html:ro
+```
+
+```bash
+# Create test content
+mkdir -p backend1 backend2 backend3
+echo "Backend 1" > backend1/index.html
+echo "Backend 2" > backend2/index.html
+echo "Backend 3" > backend3/index.html
+
+# Start services
+docker-compose -f docker-compose.test.yml up
+
+# Test
+curl http://localhost:8080
+```
+
+## Testing Different Algorithms
+
+<Tabs>
+  <Tab title="Round Robin">
+    ```bash
+    ultrabalancer \
+      -b localhost:3001 \
+      -b localhost:3002 \
+      -b localhost:3003 \
+      -a round-robin \
+      -p 8080
+
+    # Test distribution
+    for i in {1..9}; do
+      curl -s http://localhost:8080 | grep port
+    done
+    # Should see: 3001, 3002, 3003, 3001, 3002, 3003, ...
+    ```
+  </Tab>
+
+  <Tab title="Least Connections">
+    ```bash
+    ultrabalancer \
+      -b localhost:3001 \
+      -b localhost:3002 \
+      -b localhost:3003 \
+      -a least-connections \
+      -p 8080
+
+    # Test with concurrent connections
+    ab -n 100 -c 10 http://localhost:8080/
+    ```
+  </Tab>
+
+  <Tab title="IP Hash">
+    ```bash
+    ultrabalancer \
+      -b localhost:3001 \
+      -b localhost:3002 \
+      -b localhost:3003 \
+      -a ip-hash \
+      -p 8080
+
+    # Same client should hit same backend
+    for i in {1..10}; do
+      curl -s http://localhost:8080 | grep port
+    done
+    # Should see same port repeated
+    ```
+  </Tab>
+
+  <Tab title="Weighted">
+    ```bash
+    ultrabalancer \
+      -b localhost:3001:200 \
+      -b localhost:3002:100 \
+      -b localhost:3003:50 \
+      -a weighted \
+      -p 8080
+
+    # Backend 1 should get 2x traffic of backend 2
+    # Backend 2 should get 2x traffic of backend 3
+    for i in {1..100}; do
+      curl -s http://localhost:8080 | grep port
+    done | sort | uniq -c
+    ```
+  </Tab>
+</Tabs>
+
+## Health Check Testing
+
+### Test Health Check Failover
+
+```bash
+# Start backends
+PORT=3001 python backend.py &
+PORT=3002 python backend.py &
+PORT=3003 python backend.py &
+
+# Start UltraBalancer with aggressive health checks
+ultrabalancer \
+  -b localhost:3001 \
+  -b localhost:3002 \
+  -b localhost:3003 \
+  --health-check-interval 2000 \
+  --health-check-fails 2 \
+  --log-level debug
+
+# Kill one backend
+kill $(lsof -ti:3002)
+
+# Watch logs - should see:
+# WARN Backend localhost:3002 health check failed (1/2)
+# WARN Backend localhost:3002 health check failed (2/2)
+# WARN Backend localhost:3002 marked DOWN
+
+# Requests should continue working
+while true; do curl http://localhost:8080 && sleep 1; done
+```
+
+## Configuration Testing
+
+### Validate Configuration
+
+```bash
+# Create test config
+cat > test-config.yaml << 'EOF'
+listen_address: "127.0.0.1"
+listen_port: 8080
+algorithm: "round-robin"
+
+backends:
+  - host: "localhost"
+    port: 3001
+  - host: "localhost"
+    port: 3002
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+EOF
+
+# Validate
+ultrabalancer validate -c test-config.yaml
+
+# Run with config
+ultrabalancer -c test-config.yaml
+```
+
+## Debug Mode
+
+### Enable Verbose Logging
+
+```bash
+# Maximum verbosity
+ultrabalancer \
+  -b localhost:3001 \
+  -b localhost:3002 \
+  --log-level trace \
+  --log-format text
+
+# Output shows:
+# TRACE Request received: GET / HTTP/1.1
+# TRACE Selected backend: localhost:3001
+# TRACE Forwarding request...
+# TRACE Backend response: 200 OK
+# TRACE Sent response to client
+```
+
+## Monitoring During Tests
+
+### Check Metrics
+
+```bash
+# Start UltraBalancer
+ultrabalancer -b localhost:3001 -b localhost:3002 -p 8080
+
+# Generate traffic
+ab -n 1000 -c 10 http://localhost:8080/
+
+# Check metrics
+curl http://localhost:8080/metrics | jq
+
+# Watch metrics in real-time
+watch -n 1 'curl -s http://localhost:8080/metrics | jq'
+```
+
+## Automated Testing
+
+### Test Script
+
+```bash test.sh
+#!/bin/bash
+
+echo "Starting UltraBalancer test suite..."
+
+# Start test backends
+echo "Starting backends..."
+PORT=3001 python3 -m http.server 3001 > /dev/null 2>&1 &
+PID1=$!
+PORT=3002 python3 -m http.server 3002 > /dev/null 2>&1 &
+PID2=$!
+PORT=3003 python3 -m http.server 3003 > /dev/null 2>&1 &
+PID3=$!
+
+sleep 2
+
+# Start UltraBalancer
+echo "Starting UltraBalancer..."
+ultrabalancer \
+  -b localhost:3001 \
+  -b localhost:3002 \
+  -b localhost:3003 \
+  -p 8080 \
+  > /tmp/ultrabalancer.log 2>&1 &
+LB_PID=$!
+
+sleep 2
+
+# Run tests
+echo "Running tests..."
+
+# Test 1: Basic connectivity
+echo -n "Test 1: Basic connectivity... "
+if curl -sf http://localhost:8080 > /dev/null; then
+    echo "PASS"
+else
+    echo "FAIL"
+    exit 1
+fi
+
+# Test 2: Load distribution
+echo -n "Test 2: Load distribution... "
+RESPONSES=$(for i in {1..30}; do curl -s http://localhost:8080 & done | wait | wc -l)
+if [ $RESPONSES -eq 30 ]; then
+    echo "PASS"
+else
+    echo "FAIL (got $RESPONSES/30)"
+    exit 1
+fi
+
+# Test 3: Health check
+echo -n "Test 3: Health check... "
+kill $PID2  # Kill one backend
+sleep 6     # Wait for health check
+if curl -sf http://localhost:8080 > /dev/null; then
+    echo "PASS"
+else
+    echo "FAIL"
+    exit 1
+fi
+
+# Cleanup
+echo "Cleaning up..."
+kill $PID1 $PID3 $LB_PID 2>/dev/null
+echo "All tests passed!"
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Load Testing" icon="gauge-high" href="/testing/load-testing">
+    Performance testing with ab, wrk, k6
+  </Card>
+  <Card title="Benchmarks" icon="chart-line" href="/testing/benchmarks">
+    Performance benchmarks
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration/overview">
+    Configuration reference
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Debug production issues
+  </Card>
+</CardGroup>

@@ -1,0 +1,488 @@
+---
+title: 'CI/CD Integration'
+description: 'Integrate UltraBalancer deployments with GitHub Actions, GitLab CI, Jenkins, and other CI/CD platforms'
+icon: 'code-branch'
+---
+
+## Overview
+
+Automate UltraBalancer testing, building, and deployment with CI/CD pipelines.
+
+<CardGroup cols={2}>
+  <Card title="GitHub Actions" icon="github">
+    Automated workflows on GitHub
+  </Card>
+  <Card title="GitLab CI" icon="gitlab">
+    GitLab pipelines
+  </Card>
+  <Card title="Jenkins" icon="j">
+    Jenkins pipelines
+  </Card>
+  <Card title="CircleCI" icon="circle">
+    CircleCI configuration
+  </Card>
+</CardGroup>
+
+## GitHub Actions
+
+### Complete Workflow
+
+```yaml .github/workflows/deploy.yml
+name: Deploy UltraBalancer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Validate configuration
+        run: |
+          docker run --rm \
+            -v $(pwd)/config.yaml:/config.yaml \
+            ultrabalancer/ultrabalancer:latest \
+            validate -c /config.yaml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/
+          kubectl rollout status deployment/ultrabalancer
+          kubectl get pods -l app=ultrabalancer
+
+      - name: Verify deployment
+        run: |
+          kubectl wait --for=condition=ready pod -l app=ultrabalancer --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          LB_IP=$(kubectl get svc ultrabalancer -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          curl -f http://$LB_IP/metrics || exit 1
+```
+
+### Load Test in CI
+
+```yaml .github/workflows/load-test.yml
+name: Load Test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    services:
+      backend:
+        image: nginx:alpine
+        ports:
+          - 8081:80
+          - 8082:80
+          - 8083:80
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Start UltraBalancer
+        run: |
+          docker run -d --name ultrabalancer \
+            --network host \
+            ultrabalancer/ultrabalancer:latest \
+            -b localhost:8081 \
+            -b localhost:8082 \
+            -b localhost:8083 \
+            -p 8080
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apache2-utils
+
+      - name: Run load test
+        run: |
+          sleep 5
+          ab -n 10000 -c 100 http://localhost:8080/ > results.txt
+          cat results.txt
+
+      - name: Check performance
+        run: |
+          RPS=$(grep "Requests per second" results.txt | awk '{print $4}')
+          if (( $(echo "$RPS < 5000" | bc -l) )); then
+            echo "Performance regression: $RPS RPS < 5000 RPS"
+            exit 1
+          fi
+```
+
+## GitLab CI
+
+### Complete Pipeline
+
+```yaml .gitlab-ci.yml
+stages:
+  - validate
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+validate:
+  stage: validate
+  image: ultrabalancer/ultrabalancer:latest
+  script:
+    - ultrabalancer validate -c config.yaml
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+
+test:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker run -d --name backend nginx:alpine
+    - docker run -d --name ultrabalancer --link backend:backend $IMAGE_TAG -b backend:80
+    - sleep 5
+    - docker run --link ultrabalancer:ultrabalancer curlimages/curl:latest curl -f http://ultrabalancer:8080/metrics
+
+deploy_staging:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl config set-cluster k8s --server="$KUBE_SERVER"
+    - kubectl config set-credentials admin --token="$KUBE_TOKEN"
+    - kubectl config set-context default --cluster=k8s --user=admin
+    - kubectl config use-context default
+    - kubectl set image deployment/ultrabalancer ultrabalancer=$IMAGE_TAG -n staging
+    - kubectl rollout status deployment/ultrabalancer -n staging
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+    - develop
+
+deploy_production:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl config set-cluster k8s --server="$KUBE_SERVER"
+    - kubectl config set-credentials admin --token="$KUBE_TOKEN"
+    - kubectl config set-context default --cluster=k8s --user=admin
+    - kubectl config use-context default
+    - kubectl set image deployment/ultrabalancer ultrabalancer=$IMAGE_TAG -n production
+    - kubectl rollout status deployment/ultrabalancer -n production
+  environment:
+    name: production
+    url: https://example.com
+  when: manual
+  only:
+    - main
+```
+
+## Jenkins
+
+### Jenkinsfile
+
+```groovy Jenkinsfile
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = 'docker.io'
+        IMAGE_NAME = 'myorg/ultrabalancer'
+        KUBE_NAMESPACE = 'production'
+    }
+
+    stages {
+        stage('Validate') {
+            steps {
+                sh 'docker run --rm -v $(pwd)/config.yaml:/config.yaml ultrabalancer/ultrabalancer:latest validate -c /config.yaml'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    docker.build("${IMAGE_NAME}:${env.BUILD_NUMBER}")
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    docker run -d --name backend-${BUILD_NUMBER} nginx:alpine
+                    docker run -d --name ultrabalancer-${BUILD_NUMBER} --link backend-${BUILD_NUMBER}:backend ${IMAGE_NAME}:${BUILD_NUMBER} -b backend:80
+                    sleep 5
+                    docker run --link ultrabalancer-${BUILD_NUMBER}:ultrabalancer curlimages/curl:latest curl -f http://ultrabalancer:8080/metrics
+                '''
+            }
+            post {
+                always {
+                    sh '''
+                        docker stop ultrabalancer-${BUILD_NUMBER} backend-${BUILD_NUMBER} || true
+                        docker rm ultrabalancer-${BUILD_NUMBER} backend-${BUILD_NUMBER} || true
+                    '''
+                }
+            }
+        }
+
+        stage('Push') {
+            steps {
+                script {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'docker-credentials') {
+                        docker.image("${IMAGE_NAME}:${env.BUILD_NUMBER}").push()
+                        docker.image("${IMAGE_NAME}:${env.BUILD_NUMBER}").push('latest')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withKubeConfig([credentialsId: 'kube-config']) {
+                    sh """
+                        kubectl set image deployment/ultrabalancer ultrabalancer=${IMAGE_NAME}:${env.BUILD_NUMBER} -n ${KUBE_NAMESPACE}
+                        kubectl rollout status deployment/ultrabalancer -n ${KUBE_NAMESPACE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            slackSend color: 'good', message: "Deployed UltraBalancer ${env.BUILD_NUMBER} successfully"
+        }
+        failure {
+            slackSend color: 'danger', message: "Failed to deploy UltraBalancer ${env.BUILD_NUMBER}"
+        }
+    }
+}
+```
+
+## CircleCI
+
+```yaml .circleci/config.yml
+version: 2.1
+
+executors:
+  docker-publisher:
+    environment:
+      IMAGE_NAME: myorg/ultrabalancer
+    docker:
+      - image: circleci/buildpack-deps:stretch
+
+jobs:
+  validate:
+    docker:
+      - image: ultrabalancer/ultrabalancer:latest
+    steps:
+      - checkout
+      - run:
+          name: Validate config
+          command: ultrabalancer validate -c config.yaml
+
+  build:
+    executor: docker-publisher
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: docker build -t $IMAGE_NAME:latest .
+      - run:
+          name: Archive Docker image
+          command: docker save -o image.tar $IMAGE_NAME
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./image.tar
+
+  test:
+    docker:
+      - image: circleci/python:3.9
+        environment:
+          BACKEND_PORT_1: 8081
+          BACKEND_PORT_2: 8082
+      - image: nginx:alpine
+        name: backend1
+      - image: nginx:alpine
+        name: backend2
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run:
+          name: Load image
+          command: docker load -i /tmp/workspace/image.tar
+      - run:
+          name: Test
+          command: |
+            docker run -d --name ultrabalancer -p 8080:8080 $IMAGE_NAME -b backend1:80 -b backend2:80
+            sleep 5
+            curl -f http://localhost:8080/metrics
+
+  deploy:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run:
+          name: Setup kubectl
+          command: |
+            echo $KUBE_CONFIG | base64 -d > kubeconfig
+            export KUBECONFIG=kubeconfig
+      - run:
+          name: Deploy
+          command: |
+            kubectl apply -f k8s/
+            kubectl rollout status deployment/ultrabalancer
+
+workflows:
+  version: 2
+  build-test-deploy:
+    jobs:
+      - validate
+      - build:
+          requires:
+            - validate
+      - test:
+          requires:
+            - build
+      - deploy:
+          requires:
+            - test
+          filters:
+            branches:
+              only: main
+```
+
+## Automated Testing Scripts
+
+### Integration Test
+
+```bash test-integration.sh
+#!/bin/bash
+set -e
+
+echo "Starting integration tests..."
+
+# Start backends
+docker run -d --name backend1 -p 8081:80 nginx:alpine
+docker run -d --name backend2 -p 8082:80 nginx:alpine
+
+# Start UltraBalancer
+docker run -d --name ultrabalancer \
+  -p 8080:8080 \
+  ultrabalancer/ultrabalancer:latest \
+  -b host.docker.internal:8081 \
+  -b host.docker.internal:8082
+
+sleep 5
+
+# Test connectivity
+echo "Testing connectivity..."
+curl -f http://localhost:8080/metrics || { echo "Metrics endpoint failed"; exit 1; }
+
+# Test load balancing
+echo "Testing load distribution..."
+for i in {1..10}; do
+  curl -s http://localhost:8080/ > /dev/null || { echo "Request failed"; exit 1; }
+done
+
+# Cleanup
+docker stop ultrabalancer backend1 backend2
+docker rm ultrabalancer backend1 backend2
+
+echo "Integration tests passed!"
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy with Docker
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+    Deploy on Kubernetes
+  </Card>
+  <Card title="Testing" icon="flask" href="/testing/local-testing">
+    Local and load testing
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Set up monitoring
+  </Card>
+</CardGroup>

@@ -1,0 +1,153 @@
+---
+title: 'Security Best Practices'
+description: 'Secure your UltraBalancer deployment with TLS, authentication, rate limiting, and hardening'
+icon: 'shield-halved'
+---
+
+## Overview
+
+Comprehensive security guide for protecting your UltraBalancer deployment in production environments.
+
+<CardGroup cols={2}>
+  <Card title="TLS/SSL" icon="lock">
+    HTTPS and certificate management
+  </Card>
+  <Card title="Access Control" icon="user-shield">
+    Authentication and authorization
+  </Card>
+  <Card title="Rate Limiting" icon="gauge-simple-high">
+    DDoS protection
+  </Card>
+  <Card title="Hardening" icon="shield-check">
+    System security hardening
+  </Card>
+</CardGroup>
+
+## TLS Configuration
+
+### Enable HTTPS
+
+```yaml config-tls.yaml
+listen_address: "0.0.0.0"
+listen_port: 443
+
+tls:
+  enabled: true
+  cert_path: "/etc/ssl/certs/server.crt"
+  key_path: "/etc/ssl/private/server.key"
+  min_version: "1.3"
+  ciphers:
+    - TLS_AES_128_GCM_SHA256
+    - TLS_AES_256_GCM_SHA384
+    - TLS_CHACHA20_POLY1305_SHA256
+
+backends:
+  - host: "backend1"
+    port: 8080
+```
+
+### Generate Self-Signed Certificate
+
+```bash
+# For testing only
+openssl req -x509 -newkey rsa:4096 \
+  -keyout server.key \
+  -out server.crt \
+  -days 365 \
+  -nodes \
+  -subj "/CN=example.com"
+
+# Move to correct location
+sudo mv server.key /etc/ssl/private/
+sudo mv server.crt /etc/ssl/certs/
+sudo chmod 600 /etc/ssl/private/server.key
+```
+
+## Firewall Configuration
+
+### UFW (Ubuntu)
+
+```bash
+# Allow HTTPS only
+sudo ufw allow 443/tcp
+
+# Restrict metrics endpoint to monitoring subnet
+sudo ufw allow from 10.0.0.0/8 to any port 8080
+
+# Enable firewall
+sudo ufw enable
+```
+
+### iptables
+
+```bash
+# Allow HTTPS
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Restrict metrics
+sudo iptables -A INPUT -s 10.0.0.0/8 -p tcp --dport 8080 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8080 -j DROP
+
+# Save rules
+sudo iptables-save > /etc/iptables/rules.v4
+```
+
+## Security Hardening
+
+### Run as Non-Root User
+
+```bash
+# Create dedicated user
+sudo useradd -r -s /bin/false ultrabalancer
+
+# Set ownership
+sudo chown -R ultrabalancer:ultrabalancer /etc/ultrabalancer
+sudo chown -R ultrabalancer:ultrabalancer /var/log/ultrabalancer
+
+# Run as user
+sudo -u ultrabalancer ultrabalancer -c /etc/ultrabalancer/config.yaml
+```
+
+### File Permissions
+
+```bash
+# Restrict config file
+sudo chmod 600 /etc/ultrabalancer/config.yaml
+sudo chown root:ultrabalancer /etc/ultrabalancer/config.yaml
+
+# Restrict TLS private key
+sudo chmod 600 /etc/ssl/private/server.key
+sudo chown root:root /etc/ssl/private/server.key
+```
+
+## Best Practices
+
+<Tip>
+**Security Checklist**
+
+- ✓ Enable TLS 1.3
+- ✓ Use strong ciphers
+- ✓ Restrict metrics endpoint
+- ✓ Run as non-root
+- ✓ Enable firewall
+- ✓ Regular security updates
+- ✓ Monitor access logs
+- ✓ Implement rate limiting
+</Tip>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/configuration/overview">
+    Security configuration options
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/deployment/linux-server">
+    Secure deployment
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Security monitoring
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/advanced/troubleshooting">
+    Debug security issues
+  </Card>
+</CardGroup>

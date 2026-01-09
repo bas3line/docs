@@ -1,0 +1,185 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "linden",
+  "name": "UltraBalancer",
+  "description": "Production-grade HTTP load balancer written in Rust",
+  "colors": {
+    "primary": "#FDB022",
+    "light": "#FBBF24",
+    "dark": "#F59E0B",
+    "background": {
+      "light": "#FEFEFE",
+      "dark": "#0F0F0F"
+    }
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/algorithms",
+              "concepts/health-checks",
+              "concepts/metrics"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/cli-reference",
+              "configuration/file-config",
+              "configuration/examples"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/linux-server",
+              "deployment/docker",
+              "deployment/kubernetes",
+              "deployment/systemd",
+              "deployment/cloud-providers"
+            ]
+          },
+          {
+            "group": "Testing & Benchmarking",
+            "pages": [
+              "testing/local-testing",
+              "testing/load-testing",
+              "testing/benchmarks"
+            ]
+          },
+          {
+            "group": "Integration",
+            "pages": [
+              "integration/ai-agents",
+              "integration/monitoring",
+              "integration/cicd"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/health",
+              "api-reference/metrics",
+              "api-reference/prometheus"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "advanced/performance-tuning",
+              "advanced/troubleshooting",
+              "advanced/security"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/bas3line/ultrabalancer",
+          "icon": "github"
+        },
+        {
+          "anchor": "Community",
+          "href": "https://github.com/bas3line/ultrabalancer/discussions",
+          "icon": "users"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/bas3line/ultrabalancer"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "/quickstart"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "cursor"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/bas3line/ultrabalancer",
+      "twitter": "https://twitter.com/bas3line"
+    },
+    "links": [
+      {
+        "header": "Resources",
+        "items": [
+          {
+            "label": "Documentation",
+            "href": "https://docs.ultrabalancer.com"
+          },
+          {
+            "label": "Installation",
+            "href": "/installation"
+          },
+          {
+            "label": "Examples",
+            "href": "/configuration/examples"
+          }
+        ]
+      },
+      {
+        "header": "Community",
+        "items": [
+          {
+            "label": "GitHub",
+            "href": "https://github.com/bas3line/ultrabalancer"
+          },
+          {
+            "label": "Issues",
+            "href": "https://github.com/bas3line/ultrabalancer/issues"
+          },
+          {
+            "label": "Contact",
+            "href": "mailto:kiraa@tuta.io"
+          }
+        ]
+      }
+    ]
+  }
+}

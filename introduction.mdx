@@ -1,0 +1,274 @@
+---
+title: Introduction
+description: 'Production-grade HTTP load balancer written in Rust'
+---
+
+## What is UltraBalancer?
+
+UltraBalancer is a modern, high-performance load balancer built from the ground up in Rust. It combines blazing-fast performance with production-ready reliability, making it the perfect choice for modern cloud-native applications.
+
+<CardGroup cols={2}>
+  <Card
+    title="Lightning Fast"
+    icon="bolt"
+    href="/concepts/architecture"
+  >
+    Built with Tokio async runtime for maximum throughput
+  </Card>
+  <Card
+    title="Production Ready"
+    icon="shield-check"
+  >
+    Zero-downtime deployments with automatic health checks
+  </Card>
+  <Card
+    title="Easy to Use"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get started with a single command
+  </Card>
+  <Card
+    title="Observable"
+    icon="chart-line"
+  >
+    Built-in metrics and Prometheus integration
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Multiple Load Balancing Algorithms">
+    - **[Round Robin](/concepts/algorithms#round-robin)** - Equal distribution across backends
+    - **[Least Connections](/concepts/algorithms#least-connections)** - Smart connection balancing
+    - **[IP Hash](/concepts/algorithms#ip-hash)** - Consistent hashing for session persistence
+    - **[Weighted Round Robin](/concepts/algorithms#weighted-round-robin)** - Priority-based distribution
+    - **[Random](/concepts/algorithms#random)** - Stochastic distribution
+
+    [Learn more about algorithms →](/concepts/algorithms)
+  </Accordion>
+
+  <Accordion title="Health Checking & Failover">
+    - Automatic backend health monitoring
+    - Configurable check intervals and failure thresholds
+    - Instant failover to healthy backends
+    - Graceful recovery when backends come back online
+    - Circuit breaker pattern for fault tolerance
+
+    [Learn more about health checks →](/concepts/health-checks)
+  </Accordion>
+
+  <Accordion title="Metrics & Monitoring">
+    - Real-time request metrics
+    - Response time tracking (avg, p50, p95, p99)
+    - Prometheus-compatible metrics endpoint
+    - JSON metrics API
+    - Built-in `/health`, `/metrics`, `/prometheus` endpoints
+
+    [Learn more about metrics →](/concepts/metrics)
+  </Accordion>
+
+  <Accordion title="Advanced Features">
+    - Circuit breaker pattern for fault tolerance
+    - Connection pooling for optimal resource usage
+    - Rate limiting capabilities
+    - Modular architecture for easy extension
+    - Lock-free operations for maximum performance
+
+    [Learn more about architecture →](/concepts/architecture)
+  </Accordion>
+</AccordionGroup>
+
+## Why Choose UltraBalancer?
+
+<CardGroup cols={3}>
+  <Card title="Performance" icon="gauge-high">
+    Built in Rust for memory safety and blazing-fast performance. Handles thousands of concurrent connections with minimal overhead.
+  </Card>
+  <Card title="Reliability" icon="shield">
+    Production-tested with automatic health checks, circuit breakers, and graceful failure handling.
+  </Card>
+  <Card title="Simplicity" icon="wand-magic-sparkles">
+    Simple CLI interface and YAML configuration. Deploy with a single command.
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+```bash
+# Start with three backend servers
+ultrabalancer start round-robin \
+  app1.example.com:8080 \
+  app2.example.com:8080 \
+  app3.example.com:8080 \
+  -p 80
+```
+
+That's it! UltraBalancer is now distributing traffic across your backends with automatic health checking.
+
+## Installation
+
+<Tabs>
+  <Tab title="Linux (Binary)">
+    ```bash
+    # Download latest release
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
+    chmod +x ultrabalancer-linux-x86_64
+    sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
+
+    # Verify
+    ultrabalancer --version
+    ```
+
+    [Full installation guide →](/installation)
+  </Tab>
+
+  <Tab title="Build from Source">
+    ```bash
+    # Install Rust
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    source $HOME/.cargo/env
+
+    # Build UltraBalancer
+    git clone https://github.com/bas3line/ultrabalancer.git
+    cd ultrabalancer
+    cargo build --release
+    sudo cp target/release/ultrabalancer /usr/local/bin/
+    ```
+
+    [Detailed build instructions →](/installation#build-from-source)
+  </Tab>
+
+  <Tab title="Docker">
+    ```bash
+    docker pull ghcr.io/bas3line/ultrabalancer:latest
+
+    docker run -d -p 8080:8080 \
+      ghcr.io/bas3line/ultrabalancer:latest \
+      start round-robin backend1:8080 backend2:8080
+    ```
+
+    [Docker deployment guide →](/deployment/docker)
+  </Tab>
+</Tabs>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Web Applications" icon="globe">
+    Load balance HTTP/HTTPS traffic across multiple web servers. Perfect for high-traffic websites and APIs.
+  </Card>
+
+  <Card title="Microservices" icon="diagram-project">
+    Distribute requests across microservice instances with health checking and automatic failover.
+  </Card>
+
+  <Card title="API Gateways" icon="door-open">
+    Front multiple API servers with intelligent routing and request distribution.
+  </Card>
+
+  <Card title="Database Proxies" icon="database">
+    Load balance read queries across database replicas with connection pooling.
+  </Card>
+</CardGroup>
+
+## Documentation Overview
+
+<AccordionGroup>
+  <Accordion title="Getting Started">
+    - [Introduction](/introduction) - Overview and key features
+    - [Quickstart](/quickstart) - Get running in 5 minutes
+    - [Installation](/installation) - Install on any platform
+  </Accordion>
+
+  <Accordion title="Core Concepts">
+    - [Architecture](/concepts/architecture) - System design and components
+    - [Algorithms](/concepts/algorithms) - Load balancing strategies
+    - [Health Checks](/concepts/health-checks) - Monitoring and failover
+    - [Metrics](/concepts/metrics) - Performance monitoring
+  </Accordion>
+
+  <Accordion title="Configuration">
+    - [Overview](/configuration/overview) - Configuration methods
+    - [CLI Reference](/configuration/cli-reference) - Command-line options
+    - [File Config](/configuration/file-config) - YAML/TOML configuration
+    - [Examples](/configuration/examples) - Real-world configs
+  </Accordion>
+
+  <Accordion title="Deployment">
+    - [Linux Server](/deployment/linux-server) - Ubuntu, Debian, CentOS, Arch
+    - [Docker](/deployment/docker) - Container deployment
+    - [Kubernetes](/deployment/kubernetes) - K8s manifests and Helm
+    - [Systemd](/deployment/systemd) - Service configuration
+    - [Cloud Providers](/deployment/cloud-providers) - AWS, GCP, Azure
+  </Accordion>
+
+  <Accordion title="Testing & Integration">
+    - [Local Testing](/testing/local-testing) - Test your setup
+    - [Load Testing](/testing/load-testing) - Performance testing
+    - [Benchmarks](/testing/benchmarks) - Performance comparisons
+    - [AI Agents](/integration/ai-agents) - Claude, ChatGPT, Cursor
+    - [Monitoring](/integration/monitoring) - Prometheus, Grafana
+    - [CI/CD](/integration/cicd) - GitHub Actions, GitLab CI
+  </Accordion>
+
+  <Accordion title="API Reference">
+    - [/health](/api-reference/health) - Health check endpoint
+    - [/metrics](/api-reference/metrics) - JSON metrics endpoint
+    - [/prometheus](/api-reference/prometheus) - Prometheus metrics
+  </Accordion>
+
+  <Accordion title="Advanced">
+    - [Performance Tuning](/advanced/performance-tuning) - Optimization tips
+    - [Troubleshooting](/advanced/troubleshooting) - Common issues
+    - [Security](/advanced/security) - Security hardening
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="play"
+    href="/quickstart"
+  >
+    Get up and running in 5 minutes
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install UltraBalancer on your system
+  </Card>
+  <Card
+    title="Architecture"
+    icon="gear"
+    href="/concepts/architecture"
+  >
+    Learn about the system architecture
+  </Card>
+  <Card
+    title="Algorithms"
+    icon="server"
+    href="/concepts/algorithms"
+  >
+    Explore load balancing algorithms
+  </Card>
+</CardGroup>
+
+## Community & Support
+
+<CardGroup cols={3}>
+  <Card title="GitHub" icon="github" href="https://github.com/bas3line/ultrabalancer">
+    Source code, issues, and discussions
+  </Card>
+  <Card title="Documentation" icon="book" href="https://ultrabalancer.com">
+    Complete documentation and guides
+  </Card>
+  <Card title="Contact" icon="envelope" href="mailto:kiraa@tuta.io">
+    Get help and support
+  </Card>
+</CardGroup>

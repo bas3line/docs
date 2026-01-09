@@ -1,0 +1,717 @@
+---
+title: 'File Configuration Reference'
+description: 'Complete YAML and TOML configuration file reference with all options and defaults'
+icon: 'file-code'
+---
+
+## Overview
+
+UltraBalancer supports both YAML and TOML configuration formats. Choose the format that best fits your workflow and infrastructure.
+
+<CardGroup cols={2}>
+  <Card title="YAML Format" icon="file-lines">
+    Human-readable, widely adopted
+  </Card>
+  <Card title="TOML Format" icon="file-code">
+    Type-safe, explicit syntax
+  </Card>
+</CardGroup>
+
+## Complete Reference
+
+### Listener Configuration
+
+<CodeGroup>
+
+```yaml YAML
+listen_address: "0.0.0.0"  # Bind address (default: 0.0.0.0)
+listen_port: 8080          # Port to listen on (default: 8080)
+workers: auto              # Worker threads: auto or number (default: auto)
+max_connections: 10000     # Max concurrent connections (default: 10000)
+```
+
+```toml TOML
+listen_address = "0.0.0.0"
+listen_port = 8080
+workers = "auto"
+max_connections = 10000
+```
+
+</CodeGroup>
+
+<ParamField path="listen_address" type="string" default="0.0.0.0">
+  IP address to bind to. Use `0.0.0.0` for all interfaces, `127.0.0.1` for localhost.
+</ParamField>
+
+<ParamField path="listen_port" type="integer" default="8080">
+  TCP port to listen on (1-65535).
+</ParamField>
+
+<ParamField path="workers" type="string|integer" default="auto">
+  Number of worker threads. Set to `"auto"` to match CPU cores, or specific number.
+</ParamField>
+
+<ParamField path="max_connections" type="integer" default="10000">
+  Maximum number of concurrent connections.
+</ParamField>
+
+### Algorithm Configuration
+
+<CodeGroup>
+
+```yaml YAML
+algorithm: "round-robin"  # Load balancing algorithm
+
+# Available algorithms:
+# - round-robin: Distribute evenly
+# - least-connections: Route to least busy
+# - ip-hash: Consistent hashing by client IP
+# - random: Random selection
+# - weighted: Weight-based distribution
+```
+
+```toml TOML
+algorithm = "round-robin"
+```
+
+</CodeGroup>
+
+<ParamField path="algorithm" type="string" default="round-robin">
+  Load balancing algorithm. Options: `round-robin`, `least-connections`, `ip-hash`, `random`, `weighted`
+</ParamField>
+
+### Backend Configuration
+
+<CodeGroup>
+
+```yaml YAML
+backends:
+  - host: "192.168.1.10"
+    port: 8080
+    weight: 100                # Optional (default: 100)
+    max_connections: 1000      # Optional (default: 1000)
+
+  - host: "192.168.1.11"
+    port: 8080
+    weight: 150
+    max_connections: 1500
+```
+
+```toml TOML
+[[backends]]
+host = "192.168.1.10"
+port = 8080
+weight = 100
+max_connections = 1000
+
+[[backends]]
+host = "192.168.1.11"
+port = 8080
+weight = 150
+max_connections = 1500
+```
+
+</CodeGroup>
+
+<ParamField path="backends" type="array" required>
+  Array of backend server configurations.
+</ParamField>
+
+<ParamField path="backends[].host" type="string" required>
+  Backend hostname or IP address.
+</ParamField>
+
+<ParamField path="backends[].port" type="integer" required>
+  Backend port number (1-65535).
+</ParamField>
+
+<ParamField path="backends[].weight" type="integer" default="100">
+  Weight for weighted algorithms (1-1000).
+</ParamField>
+
+<ParamField path="backends[].max_connections" type="integer" default="1000">
+  Maximum connections per backend.
+</ParamField>
+
+### Health Check Configuration
+
+<CodeGroup>
+
+```yaml YAML
+health_check:
+  enabled: true              # Enable health checking
+  interval_ms: 5000          # Check interval (milliseconds)
+  timeout_ms: 2000           # Check timeout (milliseconds)
+  max_failures: 3            # Failures before marking unhealthy
+  path: "/health"            # HTTP path for health checks
+  expected_status: 200       # Expected HTTP status code
+
+  # Circuit breaker configuration
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5     # Failures to open circuit
+    success_threshold: 2     # Successes to close circuit
+    timeout_seconds: 60      # Seconds before retry
+    half_open_requests: 3    # Test requests in half-open state
+```
+
+```toml TOML
+[health_check]
+enabled = true
+interval_ms = 5000
+timeout_ms = 2000
+max_failures = 3
+path = "/health"
+expected_status = 200
+
+[health_check.circuit_breaker]
+enabled = true
+failure_threshold = 5
+success_threshold = 2
+timeout_seconds = 60
+half_open_requests = 3
+```
+
+</CodeGroup>
+
+<ParamField path="health_check.enabled" type="boolean" default="true">
+  Enable/disable active health checking.
+</ParamField>
+
+<ParamField path="health_check.interval_ms" type="integer" default="5000">
+  Interval between health checks in milliseconds.
+</ParamField>
+
+<ParamField path="health_check.timeout_ms" type="integer" default="2000">
+  Timeout for each health check in milliseconds.
+</ParamField>
+
+<ParamField path="health_check.max_failures" type="integer" default="3">
+  Number of consecutive failures before marking unhealthy.
+</ParamField>
+
+<ParamField path="health_check.path" type="string" default="/">
+  HTTP path to check on backends.
+</ParamField>
+
+<ParamField path="health_check.expected_status" type="integer" default="200">
+  Expected HTTP status code for healthy response.
+</ParamField>
+
+### Timeout Configuration
+
+<CodeGroup>
+
+```yaml YAML
+timeout:
+  connect_ms: 5000           # Connection timeout
+  request_ms: 30000          # Request timeout
+  idle_ms: 60000             # Idle connection timeout
+  keepalive_ms: 75000        # TCP keepalive timeout
+```
+
+```toml TOML
+[timeout]
+connect_ms = 5000
+request_ms = 30000
+idle_ms = 60000
+keepalive_ms = 75000
+```
+
+</CodeGroup>
+
+<ParamField path="timeout.connect_ms" type="integer" default="5000">
+  Maximum time to establish connection in milliseconds.
+</ParamField>
+
+<ParamField path="timeout.request_ms" type="integer" default="30000">
+  Maximum request processing time in milliseconds.
+</ParamField>
+
+<ParamField path="timeout.idle_ms" type="integer" default="60000">
+  Idle connection timeout in milliseconds.
+</ParamField>
+
+<ParamField path="timeout.keepalive_ms" type="integer" default="75000">
+  TCP keepalive timeout in milliseconds.
+</ParamField>
+
+### Logging Configuration
+
+<CodeGroup>
+
+```yaml YAML
+logging:
+  level: "info"              # Log level: trace, debug, info, warn, error
+  format: "json"             # Format: json, text
+  output: "/var/log/ultrabalancer/access.log"  # Log file path
+  max_size_mb: 100           # Max log file size before rotation
+  max_files: 10              # Number of rotated logs to keep
+```
+
+```toml TOML
+[logging]
+level = "info"
+format = "json"
+output = "/var/log/ultrabalancer/access.log"
+max_size_mb = 100
+max_files = 10
+```
+
+</CodeGroup>
+
+<ParamField path="logging.level" type="string" default="info">
+  Logging level: `trace`, `debug`, `info`, `warn`, `error`
+</ParamField>
+
+<ParamField path="logging.format" type="string" default="text">
+  Log format: `json` or `text`
+</ParamField>
+
+<ParamField path="logging.output" type="string" default="stdout">
+  Log output: `stdout`, `stderr`, or file path
+</ParamField>
+
+### Metrics Configuration
+
+<CodeGroup>
+
+```yaml YAML
+metrics:
+  enabled: true              # Enable metrics collection
+  endpoint: "/metrics"       # JSON metrics endpoint
+  prometheus_endpoint: "/prometheus"  # Prometheus endpoint
+```
+
+```toml TOML
+[metrics]
+enabled = true
+endpoint = "/metrics"
+prometheus_endpoint = "/prometheus"
+```
+
+</CodeGroup>
+
+### TLS Configuration
+
+<CodeGroup>
+
+```yaml YAML
+tls:
+  enabled: true
+  cert_path: "/etc/ultrabalancer/cert.pem"
+  key_path: "/etc/ultrabalancer/key.pem"
+  key_password: "${TLS_KEY_PASSWORD}"  # Use env var
+  client_auth: false         # Require client certificates
+  min_version: "1.2"         # Minimum TLS version (1.2, 1.3)
+```
+
+```toml TOML
+[tls]
+enabled = true
+cert_path = "/etc/ultrabalancer/cert.pem"
+key_path = "/etc/ultrabalancer/key.pem"
+key_password = "${TLS_KEY_PASSWORD}"
+client_auth = false
+min_version = "1.2"
+```
+
+</CodeGroup>
+
+## Complete Example Configurations
+
+### Production Configuration
+
+<CodeGroup>
+
+```yaml config-prod.yaml
+# UltraBalancer Production Configuration
+
+# Listener
+listen_address: "0.0.0.0"
+listen_port: 80
+workers: auto
+max_connections: 50000
+
+# Load balancing
+algorithm: "least-connections"
+
+# Backend servers
+backends:
+  - host: "backend1.prod.internal"
+    port: 8080
+    weight: 150
+    max_connections: 2000
+
+  - host: "backend2.prod.internal"
+    port: 8080
+    weight: 150
+    max_connections: 2000
+
+  - host: "backend3.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 1500
+
+# Health checks
+health_check:
+  enabled: true
+  interval_ms: 3000
+  timeout_ms: 1500
+  max_failures: 3
+  path: "/health"
+  expected_status: 200
+
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 2
+    timeout_seconds: 60
+    half_open_requests: 3
+
+# Timeouts
+timeout:
+  connect_ms: 5000
+  request_ms: 30000
+  idle_ms: 60000
+
+# Logging
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/ultrabalancer/access.log"
+  max_size_mb: 100
+  max_files: 10
+
+# Metrics
+metrics:
+  enabled: true
+  endpoint: "/metrics"
+  prometheus_endpoint: "/prometheus"
+```
+
+```toml config-prod.toml
+# UltraBalancer Production Configuration
+
+# Listener
+listen_address = "0.0.0.0"
+listen_port = 80
+workers = "auto"
+max_connections = 50000
+
+# Load balancing
+algorithm = "least-connections"
+
+# Backend servers
+[[backends]]
+host = "backend1.prod.internal"
+port = 8080
+weight = 150
+max_connections = 2000
+
+[[backends]]
+host = "backend2.prod.internal"
+port = 8080
+weight = 150
+max_connections = 2000
+
+[[backends]]
+host = "backend3.prod.internal"
+port = 8080
+weight = 100
+max_connections = 1500
+
+# Health checks
+[health_check]
+enabled = true
+interval_ms = 3000
+timeout_ms = 1500
+max_failures = 3
+path = "/health"
+expected_status = 200
+
+[health_check.circuit_breaker]
+enabled = true
+failure_threshold = 5
+success_threshold = 2
+timeout_seconds = 60
+half_open_requests = 3
+
+# Timeouts
+[timeout]
+connect_ms = 5000
+request_ms = 30000
+idle_ms = 60000
+
+# Logging
+[logging]
+level = "info"
+format = "json"
+output = "/var/log/ultrabalancer/access.log"
+max_size_mb = 100
+max_files = 10
+
+# Metrics
+[metrics]
+enabled = true
+endpoint = "/metrics"
+prometheus_endpoint = "/prometheus"
+```
+
+</CodeGroup>
+
+### Development Configuration
+
+<CodeGroup>
+
+```yaml config-dev.yaml
+# Development Configuration
+
+listen_address: "127.0.0.1"
+listen_port: 8080
+algorithm: "round-robin"
+
+backends:
+  - host: "localhost"
+    port: 3001
+  - host: "localhost"
+    port: 3002
+  - host: "localhost"
+    port: 3003
+
+health_check:
+  enabled: true
+  interval_ms: 10000
+  max_failures: 5
+
+logging:
+  level: "debug"
+  format: "text"
+  output: "stdout"
+
+metrics:
+  enabled: true
+```
+
+```toml config-dev.toml
+listen_address = "127.0.0.1"
+listen_port = 8080
+algorithm = "round-robin"
+
+[[backends]]
+host = "localhost"
+port = 3001
+
+[[backends]]
+host = "localhost"
+port = 3002
+
+[[backends]]
+host = "localhost"
+port = 3003
+
+[health_check]
+enabled = true
+interval_ms = 10000
+max_failures = 5
+
+[logging]
+level = "debug"
+format = "text"
+output = "stdout"
+
+[metrics]
+enabled = true
+```
+
+</CodeGroup>
+
+### High-Traffic Configuration
+
+```yaml config-hightraffic.yaml
+# High-Traffic Configuration (100k+ req/s)
+
+listen_address: "0.0.0.0"
+listen_port: 80
+workers: 16                    # More workers
+max_connections: 100000        # High connection limit
+
+algorithm: "least-connections"
+
+backends:
+  - host: "backend1.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 5000      # High per-backend limit
+
+  - host: "backend2.prod.internal"
+    port: 8080
+    weight: 100
+    max_connections: 5000
+
+health_check:
+  enabled: true
+  interval_ms: 2000            # Faster checks
+  timeout_ms: 1000
+  max_failures: 2              # Faster failover
+
+timeout:
+  connect_ms: 3000             # Aggressive timeouts
+  request_ms: 15000
+  idle_ms: 30000
+
+logging:
+  level: "warn"                # Less verbose
+  format: "json"
+  output: "/var/log/ultrabalancer/access.log"
+```
+
+## Environment Variable Substitution
+
+Use environment variables in config files:
+
+```yaml config.yaml
+listen_address: "${LISTEN_ADDRESS}"
+listen_port: ${LISTEN_PORT}
+
+backends:
+  - host: "${BACKEND_1_HOST}"
+    port: ${BACKEND_1_PORT}
+  - host: "${BACKEND_2_HOST}"
+    port: ${BACKEND_2_PORT}
+
+tls:
+  cert_path: "${TLS_CERT_PATH}"
+  key_path: "${TLS_KEY_PATH}"
+  key_password: "${TLS_KEY_PASSWORD}"
+```
+
+```bash
+export LISTEN_ADDRESS="0.0.0.0"
+export LISTEN_PORT="80"
+export BACKEND_1_HOST="backend1.internal"
+export BACKEND_1_PORT="8080"
+export TLS_KEY_PASSWORD="secret"
+
+ultrabalancer -c config.yaml
+```
+
+## Configuration Validation
+
+Validate configuration before deployment:
+
+```bash
+ultrabalancer validate -c config.yaml
+```
+
+### Validation Rules
+
+<Accordion title="Listener Validation">
+  - `listen_port` must be between 1 and 65535
+  - `listen_address` must be valid IP or hostname
+  - `workers` must be positive integer or "auto"
+  - `max_connections` must be positive integer
+</Accordion>
+
+<Accordion title="Backend Validation">
+  - At least one backend required
+  - `host` must not be empty
+  - `port` must be between 1 and 65535
+  - `weight` must be between 1 and 1000
+  - No duplicate backends (same host:port)
+</Accordion>
+
+<Accordion title="Health Check Validation">
+  - `interval_ms` must be ≥ 1000
+  - `timeout_ms` must be < `interval_ms`
+  - `max_failures` must be ≥ 1
+  - `path` must start with /
+</Accordion>
+
+<Accordion title="Timeout Validation">
+  - All timeout values must be positive
+  - `connect_ms` should be < `request_ms`
+  - `idle_ms` should be > `request_ms`
+</Accordion>
+
+## Migration Guide
+
+### From Nginx
+
+```nginx nginx.conf
+upstream backend {
+    least_conn;
+    server backend1:8080 weight=2;
+    server backend2:8080 weight=1;
+    server backend3:8080 backup;
+}
+
+server {
+    listen 80;
+    location / {
+        proxy_pass http://backend;
+    }
+}
+```
+
+**UltraBalancer equivalent:**
+
+```yaml config.yaml
+algorithm: "least-connections"
+
+backends:
+  - host: "backend1"
+    port: 8080
+    weight: 200
+  - host: "backend2"
+    port: 8080
+    weight: 100
+  - host: "backend3"
+    port: 8080
+    weight: 50
+```
+
+### From HAProxy
+
+```conf haproxy.cfg
+backend app
+    balance leastconn
+    option httpchk GET /health
+    server app1 backend1:8080 check weight 100
+    server app2 backend2:8080 check weight 100
+```
+
+**UltraBalancer equivalent:**
+
+```yaml config.yaml
+algorithm: "least-connections"
+
+backends:
+  - host: "backend1"
+    port: 8080
+    weight: 100
+  - host: "backend2"
+    port: 8080
+    weight: 100
+
+health_check:
+  enabled: true
+  path: "/health"
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Configuration Overview" icon="sliders" href="/configuration/overview">
+    Learn about all configuration methods
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/configuration/cli-reference">
+    Command-line interface documentation
+  </Card>
+  <Card title="Examples" icon="list-check" href="/configuration/examples">
+    Real-world configuration examples
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/deployment/linux-server">
+    Deploy with your configuration
+  </Card>
+</CardGroup>

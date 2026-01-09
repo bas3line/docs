@@ -1,0 +1,99 @@
+---
+title: 'Troubleshooting Guide'
+description: 'Debug common issues, interpret logs, and resolve production problems with UltraBalancer'
+icon: 'wrench'
+---
+
+## Overview
+
+Comprehensive troubleshooting guide for diagnosing and resolving UltraBalancer issues.
+
+<CardGroup cols={2}>
+  <Card title="Common Issues" icon="circle-exclamation">
+    Frequently encountered problems
+  </Card>
+  <Card title="Debug Logs" icon="file-lines">
+    Interpreting log output
+  </Card>
+  <Card title="Performance" icon="gauge">
+    Performance degradation
+  </Card>
+  <Card title="Network" icon="network-wired">
+    Connectivity problems
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+### Service Won't Start
+
+<Accordion title="Permission denied on port 80">
+  **Cause:** Ports below 1024 require elevated privileges
+
+  **Solution:**
+  ```bash
+  # Option 1: Use setcap
+  sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/ultrabalancer
+
+  # Option 2: Run with sudo
+  sudo ultrabalancer -c config.yaml
+
+  # Option 3: Use unprivileged port
+  ultrabalancer -p 8080 -c config.yaml
+  ```
+</Accordion>
+
+<Accordion title="Config file not found">
+  **Solution:**
+  ```bash
+  # Use absolute path
+  ultrabalancer -c /etc/ultrabalancer/config.yaml
+
+  # Verify file exists
+  ls -la /etc/ultrabalancer/config.yaml
+
+  # Check permissions
+  sudo chmod 644 /etc/ultrabalancer/config.yaml
+  ```
+</Accordion>
+
+### Connection Issues
+
+<Accordion title="Cannot connect to backends">
+  **Debug:**
+  ```bash
+  # Test backend connectivity
+  curl http://backend1:8080
+
+  # Check DNS resolution
+  nslookup backend1
+
+  # Test network path
+  traceroute backend1
+
+  # Check firewall
+  sudo iptables -L
+  telnet backend1 8080
+  ```
+</Accordion>
+
+## Debug Mode
+
+```bash
+# Enable verbose logging
+ultrabalancer -c config.yaml --log-level debug
+
+# Maximum verbosity
+ultrabalancer -c config.yaml --log-level trace
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/configuration/overview">
+    Configuration reference
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Monitor metrics
+  </Card>
+</CardGroup>

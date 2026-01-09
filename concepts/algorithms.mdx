@@ -1,0 +1,469 @@
+---
+title: 'Load Balancing Algorithms'
+description: 'Understanding different load balancing strategies'
+---
+
+## Overview
+
+UltraBalancer supports multiple load balancing algorithms, each optimized for different use cases. Choosing the right algorithm is crucial for optimal performance and reliability.
+
+## Available Algorithms
+
+<CardGroup cols={2}>
+  <Card title="Round Robin" icon="arrows-rotate">
+    Equal distribution in sequential order
+  </Card>
+  <Card title="Least Connections" icon="signal-bars">
+    Routes to backend with fewest active connections
+  </Card>
+  <Card title="IP Hash" icon="fingerprint">
+    Consistent hashing based on client IP
+  </Card>
+  <Card title="Weighted Round Robin" icon="scale-balanced">
+    Distribution based on backend weights
+  </Card>
+  <Card title="Random" icon="shuffle">
+    Random backend selection
+  </Card>
+</CardGroup>
+
+## Round Robin
+
+### How It Works
+
+Distributes requests sequentially across all healthy backends in a circular fashion.
+
+```
+Request 1 → Backend A
+Request 2 → Backend B
+Request 3 → Backend C
+Request 4 → Backend A
+Request 5 → Backend B
+...
+```
+
+### Best For
+
+- **Homogeneous backends** with similar capacity
+- **Stateless applications** where any backend can handle any request
+- **Simple deployments** where you want equal distribution
+
+### Usage
+
+```bash CLI
+ultrabalancer start round-robin \
+  backend1:8080 \
+  backend2:8080 \
+  backend3:8080
+```
+
+```yaml Config File
+algorithm: "round-robin"
+backends:
+  - host: "backend1"
+    port: 8080
+  - host: "backend2"
+    port: 8080
+  - host: "backend3"
+    port: 8080
+```
+
+### Characteristics
+
+<ResponseField name="Pros">
+  - Simple and predictable
+  - Even distribution over time
+  - Low computational overhead
+  - No state required
+</ResponseField>
+
+<ResponseField name="Cons">
+  - Doesn't consider backend load
+  - May unevenly distribute long-running requests
+  - Not suitable for heterogeneous backends
+</ResponseField>
+
+---
+
+## Least Connections
+
+### How It Works
+
+Routes each request to the backend with the **fewest active connections**, ensuring optimal load distribution.
+
+```
+Backend A: 5 connections  ← Request routed here
+Backend B: 10 connections
+Backend C: 8 connections
+```
+
+### Best For
+
+- **Long-lived connections** (WebSockets, streaming)
+- **Variable request durations**
+- **Real-time load balancing**
+- **Heterogeneous workloads**
+
+### Usage
+
+```bash CLI
+ultrabalancer start least-connections \
+  backend1:8080 \
+  backend2:8080 \
+  backend3:8080
+```
+
+```yaml Config File
+algorithm: "least-connections"
+backends:
+  - host: "backend1"
+    port: 8080
+  - host: "backend2"
+    port: 8080
+  - host: "backend3"
+    port: 8080
+```
+
+### Characteristics
+
+<ResponseField name="Pros">
+  - Dynamic load distribution
+  - Handles variable request times well
+  - Optimal for long-lived connections
+  - Prevents backend overload
+</ResponseField>
+
+<ResponseField name="Cons">
+  - Slight computational overhead
+  - Requires connection tracking
+  - May cause "thundering herd" on restart
+</ResponseField>
+
+---
+
+## IP Hash
+
+### How It Works
+
+Uses **consistent hashing** on the client's IP address to always route the same client to the same backend.
+
+```
+Client 192.168.1.100 → hash → Backend B
+Client 192.168.1.101 → hash → Backend A
+Client 192.168.1.102 → hash → Backend C
+
+# Same client always goes to same backend
+Client 192.168.1.100 → hash → Backend B ✓
+```
+
+### Best For
+
+- **Session persistence** without cookies
+- **Stateful applications** requiring sticky sessions
+- **Cache locality** optimization
+- **WebSocket applications**
+
+### Usage
+
+```bash CLI
+ultrabalancer start ip-hash \
+  backend1:8080 \
+  backend2:8080 \
+  backend3:8080
+```
+
+```yaml Config File
+algorithm: "ip-hash"
+backends:
+  - host: "backend1"
+    port: 8080
+  - host: "backend2"
+    port: 8080
+  - host: "backend3"
+    port: 8080
+```
+
+### Characteristics
+
+<ResponseField name="Pros">
+  - Session persistence without cookies
+  - Excellent cache hit rates
+  - Predictable routing
+  - No server-side session storage needed
+</ResponseField>
+
+<ResponseField name="Cons">
+  - Uneven distribution if client IPs skewed
+  - NAT/proxy may group many clients
+  - Backend changes disrupt sessions
+  - Not suitable for APIs behind CDN
+</ResponseField>
+
+<Warning>
+  **NAT Considerations**: Clients behind NAT will share the same IP and always route to the same backend. This can cause imbalance in corporate networks or mobile carriers.
+</Warning>
+
+---
+
+## Weighted Round Robin
+
+### How It Works
+
+Distributes requests based on assigned **weights**, allowing prioritization of more powerful backends.
+
+```
+Backend A (weight: 100) → Gets ~50% of traffic
+Backend B (weight: 100) → Gets ~50% of traffic
+Backend C (weight: 50)  → Gets ~25% of traffic
+```
+
+### Best For
+
+- **Heterogeneous backends** with different capacities
+- **Phased rollouts** (canary deployments)
+- **Multi-zone deployments** (prefer same-zone backends)
+- **Hardware variations** (different CPU/memory)
+
+### Usage
+
+```bash CLI
+ultrabalancer start weighted \
+  powerful-server:8080 \
+  medium-server:8080 \
+  backup-server:8080 \
+  -w 100
+```
+
+```yaml Config File
+algorithm: "weighted"
+backends:
+  - host: "powerful-server"
+    port: 8080
+    weight: 200  # Gets 2x traffic
+  - host: "medium-server"
+    port: 8080
+    weight: 100  # Gets 1x traffic
+  - host: "backup-server"
+    port: 8080
+    weight: 50   # Gets 0.5x traffic
+```
+
+### Characteristics
+
+<ResponseField name="Pros">
+  - Handles heterogeneous backends
+  - Perfect for capacity planning
+  - Enables canary deployments
+  - Flexible traffic control
+</ResponseField>
+
+<ResponseField name="Cons">
+  - Requires weight tuning
+  - More complex configuration
+  - Static weights don't adapt to load
+</ResponseField>
+
+### Weight Examples
+
+<CodeGroup>
+
+```yaml Canary Deployment
+# Route 90% to stable, 10% to canary
+backends:
+  - host: "stable-v1"
+    port: 8080
+    weight: 90
+  - host: "canary-v2"
+    port: 8080
+    weight: 10
+```
+
+```yaml Hardware Tiers
+# Match backend capacity
+backends:
+  - host: "large-16core"
+    port: 8080
+    weight: 400
+  - host: "medium-8core"
+    port: 8080
+    weight: 200
+  - host: "small-4core"
+    port: 8080
+    weight: 100
+```
+
+```yaml Multi-Zone
+# Prefer same-zone backends
+backends:
+  - host: "us-east-1a"
+    port: 8080
+    weight: 100
+  - host: "us-east-1b"
+    port: 8080
+    weight: 50  # Backup zone
+```
+
+</CodeGroup>
+
+---
+
+## Random
+
+### How It Works
+
+Selects a backend **randomly** for each request.
+
+### Best For
+
+- **Testing and development**
+- **Stateless microservices**
+- **Simple deployments**
+- **Load testing scenarios**
+
+### Usage
+
+```bash CLI
+ultrabalancer start random \
+  backend1:8080 \
+  backend2:8080 \
+  backend3:8080
+```
+
+```yaml Config File
+algorithm: "random"
+backends:
+  - host: "backend1"
+    port: 8080
+  - host: "backend2"
+    port: 8080
+  - host: "backend3"
+    port: 8080
+```
+
+### Characteristics
+
+<ResponseField name="Pros">
+  - Simple implementation
+  - No state required
+  - Even distribution over time
+  - Unpredictable (good for testing)
+</ResponseField>
+
+<ResponseField name="Cons">
+  - Short-term imbalance possible
+  - Not deterministic
+  - Rarely optimal for production
+</ResponseField>
+
+---
+
+## Algorithm Comparison
+
+<table>
+  <thead>
+    <tr>
+      <th>Algorithm</th>
+      <th>Session Persistence</th>
+      <th>Load Awareness</th>
+      <th>Complexity</th>
+      <th>Best Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Round Robin</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>Low</td>
+      <td>Homogeneous backends</td>
+    </tr>
+    <tr>
+      <td>Least Connections</td>
+      <td>❌</td>
+      <td>✅</td>
+      <td>Medium</td>
+      <td>Variable workloads</td>
+    </tr>
+    <tr>
+      <td>IP Hash</td>
+      <td>✅</td>
+      <td>❌</td>
+      <td>Medium</td>
+      <td>Stateful apps</td>
+    </tr>
+    <tr>
+      <td>Weighted RR</td>
+      <td>❌</td>
+      <td>⚠️ Static</td>
+      <td>Medium</td>
+      <td>Heterogeneous backends</td>
+    </tr>
+    <tr>
+      <td>Random</td>
+      <td>❌</td>
+      <td>❌</td>
+      <td>Low</td>
+      <td>Testing</td>
+    </tr>
+  </tbody>
+</table>
+
+## Choosing the Right Algorithm
+
+<Steps>
+  <Step title="Assess Your Requirements">
+    - Do you need session persistence? → **IP Hash**
+    - Do backends have different capacities? → **Weighted Round Robin**
+    - Do requests have variable durations? → **Least Connections**
+    - Simple stateless app with equal backends? → **Round Robin**
+  </Step>
+
+  <Step title="Consider Your Traffic">
+    - WebSocket/long-lived connections? → **Least Connections**
+    - High request rate with short responses? → **Round Robin**
+    - Users need consistent backend? → **IP Hash**
+  </Step>
+
+  <Step title="Test and Monitor">
+    Start with **Round Robin** and monitor:
+    - Backend utilization
+    - Response times
+    - Error rates
+    - Connection distribution
+
+    Switch algorithms if metrics suggest imbalance.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Health Checks"
+    icon="heart-pulse"
+    href="/concepts/health-checks"
+  >
+    Learn about automatic failover
+  </Card>
+  <Card
+    title="Configuration"
+    icon="sliders"
+    href="/configuration/overview"
+  >
+    Master configuration options
+  </Card>
+  <Card
+    title="Monitoring"
+    icon="chart-line"
+    href="/guides/monitoring"
+  >
+    Track algorithm performance
+  </Card>
+  <Card
+    title="Production Guide"
+    icon="server"
+    href="/guides/production-deployment"
+  >
+    Deploy with confidence
+  </Card>
+</CardGroup>

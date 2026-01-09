@@ -1,80 +1,533 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Get UltraBalancer running in under 5 minutes'
 ---
 
-## Get started in three steps
+## Install UltraBalancer
 
-Get your documentation site running locally and make your first customization.
+<CodeGroup>
 
-### Step 1: Set up your local environment
+```bash Linux (Binary)
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
+chmod +x ultrabalancer-linux-x86_64
+sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
+```
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash Linux (Build from Source)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+git clone https://github.com/bas3line/ultrabalancer.git
+cd ultrabalancer
+cargo build --release
+sudo cp target/release/ultrabalancer /usr/local/bin/
+```
 
-### Step 2: Deploy your changes
+```bash macOS
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-darwin-arm64
+chmod +x ultrabalancer-darwin-arm64
+sudo mv ultrabalancer-darwin-arm64 /usr/local/bin/ultrabalancer
+```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+```bash Docker
+docker pull ghcr.io/bas3line/ultrabalancer:latest
+```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+</CodeGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+See the [Installation Guide](/installation) for detailed instructions for your platform.
 </Note>
+
+## Start Test Backends
+
+Let's create some test backend servers to load balance across:
+
+<CodeGroup>
+
+```python test_backend.py
+#!/usr/bin/env python3
+import http.server
+import socketserver
+import sys
+
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        response = f"Backend server on port {PORT}\n"
+        self.wfile.write(response.encode())
+
+    def log_message(self, format, *args):
+        print(f"[Backend {PORT}] {format % args}")
+
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"Backend server running on port {PORT}")
+    httpd.serve_forever()
+```
+
+```javascript test_backend.js
+const http = require('http');
+const PORT = process.argv[2] || 8001;
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end(`Backend server on port ${PORT}\n`);
+  console.log(`[Backend ${PORT}] ${req.method} ${req.url}`);
+});
+
+server.listen(PORT, () => {
+  console.log(`Backend server running on port ${PORT}`);
+});
+```
+
+```go test_backend.go
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "os"
+)
+
+func main() {
+    port := "8001"
+    if len(os.Args) > 1 {
+        port = os.Args[1]
+    }
+
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, "Backend server on port %s\n", port)
+        fmt.Printf("[Backend %s] %s %s\n", port, r.Method, r.URL.Path)
+    })
+
+    fmt.Printf("Backend server running on port %s\n", port)
+    http.ListenAndServe(":"+port, nil)
+}
+```
+
+```bash Simple HTTP Servers
+# Using Python
+python3 -m http.server 8001 &
+python3 -m http.server 8002 &
+python3 -m http.server 8003 &
+
+# Using netcat (testing only)
+while true; do echo -e "HTTP/1.1 200 OK\n\nBackend 1" | nc -l -p 8001; done &
+while true; do echo -e "HTTP/1.1 200 OK\n\nBackend 2" | nc -l -p 8002; done &
+```
+
+</CodeGroup>
+
+Start three backend servers:
+
+```bash
+# Terminal 1
+python3 test_backend.py 8001
+
+# Terminal 2
+python3 test_backend.py 8002
+
+# Terminal 3
+python3 test_backend.py 8003
+```
+
+## Start UltraBalancer
+
+Now start the load balancer:
+
+<CodeGroup>
+
+```bash Round Robin
+ultrabalancer start round-robin \
+  127.0.0.1:8001 \
+  127.0.0.1:8002 \
+  127.0.0.1:8003 \
+  -p 8080
+```
+
+```bash Least Connections
+ultrabalancer start least-connections \
+  127.0.0.1:8001 \
+  127.0.0.1:8002 \
+  127.0.0.1:8003 \
+  -p 8080
+```
+
+```bash IP Hash
+ultrabalancer start ip-hash \
+  127.0.0.1:8001 \
+  127.0.0.1:8002 \
+  127.0.0.1:8003 \
+  -p 8080
+```
+
+```bash With Config File
+# Create config file
+cat > config.yaml <<EOF
+listen_address: "0.0.0.0"
+listen_port: 8080
+algorithm: "round-robin"
+
+backends:
+  - host: "127.0.0.1"
+    port: 8001
+    weight: 100
+  - host: "127.0.0.1"
+    port: 8002
+    weight: 100
+  - host: "127.0.0.1"
+    port: 8003
+    weight: 100
+
+health_check:
+  enabled: true
+  interval_ms: 5000
+  max_failures: 3
+
+timeout:
+  connect_ms: 5000
+  request_ms: 30000
+EOF
+
+# Start with config
+ultrabalancer -c config.yaml
+```
+
+</CodeGroup>
+
+You should see output like:
+
+```
+UltraBalancer starting...
+Algorithm: Round Robin
+Backends: 3
+   - 127.0.0.1:8001 (weight: 100)
+   - 127.0.0.1:8002 (weight: 100)
+   - 127.0.0.1:8003 (weight: 100)
+Health checks: enabled (every 5s, max 3 failures)
+Listening on: 0.0.0.0:8080
+Ready to accept connections
+```
+
+## Test Load Balancing
+
+<CodeGroup>
+
+```bash cURL
+# Send requests and see load balancing in action
+for i in {1..10}; do
+  curl http://localhost:8080
+  sleep 0.5
+done
+```
+
+```bash HTTPie
+# If you have httpie installed
+for i in {1..10}; do
+  http localhost:8080
+done
+```
+
+```bash wget
+for i in {1..10}; do
+  wget -qO- http://localhost:8080
+done
+```
+
+```javascript Node.js
+const http = require('http');
+
+for (let i = 0; i < 10; i++) {
+  http.get('http://localhost:8080', (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => console.log(`Request ${i + 1}: ${data.trim()}`));
+  });
+}
+```
+
+```python Python
+import requests
+
+for i in range(10):
+    response = requests.get('http://localhost:8080')
+    print(f"Request {i + 1}: {response.text.strip()}")
+```
+
+```go Go
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+)
+
+func main() {
+    for i := 1; i <= 10; i++ {
+        resp, _ := http.Get("http://localhost:8080")
+        body, _ := io.ReadAll(resp.Body)
+        fmt.Printf("Request %d: %s", i, body)
+        resp.Body.Close()
+    }
+}
+```
+
+</CodeGroup>
+
+You should see responses cycling through your backends:
+
+```
+Backend server on port 8001
+Backend server on port 8002
+Backend server on port 8003
+Backend server on port 8001
+Backend server on port 8002
+...
+```
+
+## Monitor Health and Metrics
+
+<CodeGroup>
+
+```bash Health Check
+curl http://localhost:8080/health | jq
+```
+
+```bash Metrics (JSON)
+curl http://localhost:8080/metrics | jq
+```
+
+```bash Metrics (Prometheus)
+curl http://localhost:8080/prometheus
+```
+
+</CodeGroup>
+
+**Health Response:**
+```json
+{
+  "status": "ok",
+  "healthy_backends": "3/3",
+  "uptime_seconds": 120
+}
+```
+
+**Metrics Response:**
+```json
+{
+  "total_requests": 10,
+  "successful_requests": 10,
+  "failed_requests": 0,
+  "avg_response_time_ms": 2.3,
+  "p50_response_time_ms": 2.1,
+  "p95_response_time_ms": 3.5,
+  "p99_response_time_ms": 4.2,
+  "uptime_seconds": 120,
+  "requests_per_second": 0.08
+}
+```
+
+## Test Health Checking
+
+Kill one of the backend servers and watch automatic failover:
+
+```bash
+# Kill backend on port 8002
+pkill -f "8002"
+
+# Check health status
+curl http://localhost:8080/health | jq
+
+# Continue sending requests - they'll only go to healthy backends
+for i in {1..10}; do curl http://localhost:8080; sleep 0.5; done
+```
+
+Health response will show:
+```json
+{
+  "status": "degraded",
+  "healthy_backends": "2/3",
+  "uptime_seconds": 180
+}
+```
+
+## Complete Quickstart Script
+
+Save this as `quickstart.sh`:
+
+```bash quickstart.sh
+#!/bin/bash
+
+echo "UltraBalancer Quickstart"
+echo ""
+
+# Check if ultrabalancer is installed
+if ! command -v ultrabalancer &> /dev/null; then
+    echo "ultrabalancer not found. Installing..."
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
+    chmod +x ultrabalancer-linux-x86_64
+    sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
+fi
+
+# Start backend servers
+echo "Starting backend servers..."
+
+python3 -c "
+import http.server
+import socketserver
+import sys
+PORT = int(sys.argv[1])
+Handler = http.server.SimpleHTTPRequestHandler
+with socketserver.TCPServer(('', PORT), Handler) as httpd:
+    print(f'Backend running on {PORT}')
+    httpd.serve_forever()
+" 8001 &
+PID1=$!
+
+python3 -c "
+import http.server
+import socketserver
+import sys
+PORT = int(sys.argv[1])
+Handler = http.server.SimpleHTTPRequestHandler
+with socketserver.TCPServer(('', PORT), Handler) as httpd:
+    print(f'Backend running on {PORT}')
+    httpd.serve_forever()
+" 8002 &
+PID2=$!
+
+python3 -c "
+import http.server
+import socketserver
+import sys
+PORT = int(sys.argv[1])
+Handler = http.server.SimpleHTTPRequestHandler
+with socketserver.TCPServer(('', PORT), Handler) as httpd:
+    print(f'Backend running on {PORT}')
+    httpd.serve_forever()
+" 8003 &
+PID3=$!
+
+sleep 2
+
+# Start UltraBalancer
+echo ""
+echo "Starting UltraBalancer..."
+ultrabalancer start round-robin 127.0.0.1:8001 127.0.0.1:8002 127.0.0.1:8003 -p 8080 &
+ULTRA_PID=$!
+
+sleep 2
+
+# Test
+echo ""
+echo "Testing load balancer..."
+for i in {1..5}; do
+    curl -s http://localhost:8080
+done
+
+echo ""
+echo "Health status:"
+curl -s http://localhost:8080/health | jq
+
+# Cleanup function
+cleanup() {
+    echo ""
+    echo "Cleaning up..."
+    kill $PID1 $PID2 $PID3 $ULTRA_PID 2>/dev/null
+    exit
+}
+
+trap cleanup SIGINT SIGTERM
+
+echo ""
+echo "Quickstart complete!"
+echo "Load balancer running on http://localhost:8080"
+echo "Metrics: http://localhost:8080/metrics"
+echo "Health: http://localhost:8080/health"
+echo ""
+echo "Press Ctrl+C to stop all services"
+
+wait
+```
+
+Run it:
+```bash
+chmod +x quickstart.sh
+./quickstart.sh
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Learn about all configuration options
+  </Card>
+  <Card title="Algorithms" icon="brain" href="/concepts/algorithms">
+    Deep dive into load balancing algorithms
+  </Card>
+  <Card title="Deploy to Production" icon="server" href="/deployment/linux-server">
+    Production deployment guides
+  </Card>
+  <Card title="Load Testing" icon="chart-line" href="/testing/load-testing">
+    Benchmark and test your setup
+  </Card>
+</CardGroup>
+
+## Common Commands
+
+<AccordionGroup>
+  <Accordion title="Start with different algorithms">
+    ```bash
+    # Round Robin (default)
+    ultrabalancer start round-robin backend1:8080 backend2:8080
+
+    # Least Connections
+    ultrabalancer start least-connections backend1:8080 backend2:8080
+
+    # IP Hash (session persistence)
+    ultrabalancer start ip-hash backend1:8080 backend2:8080
+
+    # Weighted Round Robin
+    ultrabalancer start weighted backend1:8080 backend2:8080 -w 200 -w 100
+
+    # Random
+    ultrabalancer start random backend1:8080 backend2:8080
+    ```
+  </Accordion>
+
+  <Accordion title="Custom ports and settings">
+    ```bash
+    # Custom listen port
+    ultrabalancer start round-robin backend1:8080 -p 80
+
+    # Custom health check interval (10 seconds)
+    ultrabalancer start round-robin backend1:8080 --health-check-interval 10000
+
+    # Disable health checks
+    ultrabalancer start round-robin backend1:8080 --no-health-check
+
+    # Set max failures before marking backend down
+    ultrabalancer start round-robin backend1:8080 --health-check-fails 5
+    ```
+  </Accordion>
+
+  <Accordion title="Using config files">
+    ```bash
+    # Generate example config
+    ultrabalancer example > config.yaml
+
+    # Start with config file
+    ultrabalancer -c config.yaml
+
+    # Start with TOML config
+    ultrabalancer -c config.toml
+
+    # Validate config without starting
+    ultrabalancer validate -f config.yaml
+    ```
+  </Accordion>
+</AccordionGroup>

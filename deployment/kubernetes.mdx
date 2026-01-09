@@ -1,0 +1,715 @@
+---
+title: 'Kubernetes Deployment'
+description: 'Deploy UltraBalancer on Kubernetes with complete manifests, Helm charts, and best practices'
+icon: 'dharmachakra'
+---
+
+## Overview
+
+Deploy UltraBalancer on Kubernetes for production-grade container orchestration with automatic scaling, rolling updates, and high availability.
+
+<CardGroup cols={2}>
+  <Card title="Deployment Manifests" icon="file-code">
+    Complete Kubernetes YAML manifests
+  </Card>
+  <Card title="Helm Charts" icon="helm">
+    Package manager for Kubernetes
+  </Card>
+  <Card title="Service Discovery" icon="sitemap">
+    Automatic backend discovery
+  </Card>
+  <Card title="Auto-scaling" icon="arrows-up-down">
+    Horizontal Pod Autoscaler (HPA)
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Basic Deployment
+
+```bash
+# Deploy UltraBalancer
+kubectl apply -f https://raw.githubusercontent.com/bas3line/ultrabalancer/main/k8s/deploy.yaml
+
+# Check deployment
+kubectl get pods -l app=ultrabalancer
+
+# Expose service
+kubectl expose deployment ultrabalancer --type=LoadBalancer --port=80 --target-port=8080
+```
+
+## Kubernetes Manifests
+
+### Complete Deployment
+
+```yaml ultrabalancer-deployment.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ultrabalancer-config
+data:
+  config.yaml: |
+    listen_address: "0.0.0.0"
+    listen_port: 8080
+    algorithm: "least-connections"
+
+    backends:
+      - host: "backend-service"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+      path: "/health"
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+  labels:
+    app: ultrabalancer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/prometheus"
+    spec:
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:2.0.0
+        imagePullPolicy: IfNotPresent
+        args:
+          - --config
+          - /etc/ultrabalancer/config.yaml
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/ultrabalancer
+          readOnly: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      volumes:
+      - name: config
+        configMap:
+          name: ultrabalancer-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer
+  labels:
+    app: ultrabalancer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: ultrabalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer-metrics
+  labels:
+    app: ultrabalancer
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: metrics
+  selector:
+    app: ultrabalancer
+```
+
+### With Ingress
+
+```yaml ultrabalancer-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ultrabalancer
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - api.example.com
+    secretName: ultrabalancer-tls
+  rules:
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ultrabalancer
+            port:
+              number: 80
+```
+
+## Helm Chart
+
+### Install with Helm
+
+```bash
+# Add Helm repository
+helm repo add ultrabalancer https://charts.ultrabalancer.com
+helm repo update
+
+# Install chart
+helm install ultrabalancer ultrabalancer/ultrabalancer \
+  --namespace ultrabalancer \
+  --create-namespace \
+  --set replicaCount=3 \
+  --set service.type=LoadBalancer
+
+# Upgrade
+helm upgrade ultrabalancer ultrabalancer/ultrabalancer \
+  --namespace ultrabalancer \
+  --set image.tag=2.0.1
+
+# Uninstall
+helm uninstall ultrabalancer --namespace ultrabalancer
+```
+
+### values.yaml
+
+```yaml values.yaml
+replicaCount: 3
+
+image:
+  repository: ultrabalancer/ultrabalancer
+  tag: "2.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/prometheus"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+config:
+  listen_address: "0.0.0.0"
+  listen_port: 8080
+  algorithm: "least-connections"
+
+  backends:
+    - host: "backend-service"
+      port: 8080
+
+  health_check:
+    enabled: true
+    interval_ms: 5000
+    path: "/health"
+
+  logging:
+    level: "info"
+    format: "json"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - ultrabalancer
+        topologyKey: kubernetes.io/hostname
+```
+
+## Auto-scaling
+
+### Horizontal Pod Autoscaler
+
+```yaml hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ultrabalancer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ultrabalancer
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+```
+
+### Vertical Pod Autoscaler
+
+```yaml vpa.yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ultrabalancer
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ultrabalancer
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: ultrabalancer
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 1Gi
+```
+
+## Service Discovery
+
+### Dynamic Backend Discovery
+
+```yaml configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ultrabalancer-config
+data:
+  config.yaml: |
+    listen_address: "0.0.0.0"
+    listen_port: 8080
+    algorithm: "least-connections"
+
+    backends:
+      # Kubernetes service DNS
+      - host: "backend-service.default.svc.cluster.local"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+```
+
+### Headless Service Discovery
+
+```yaml backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-headless
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: backend
+  ports:
+  - port: 8080
+    targetPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: nginx:alpine
+        ports:
+        - containerPort: 8080
+```
+
+## Production Configurations
+
+### Multi-Zone Deployment
+
+```yaml multi-zone.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - ultrabalancer
+            topologyKey: topology.kubernetes.io/zone
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ultrabalancer
+              topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: ultrabalancer
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:2.0.0
+        # ... rest of container spec
+```
+
+### With PodDisruptionBudget
+
+```yaml pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ultrabalancer
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ultrabalancer
+```
+
+### Network Policy
+
+```yaml network-policy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ultrabalancer
+spec:
+  podSelector:
+    matchLabels:
+      app: ultrabalancer
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 53  # DNS
+    - protocol: UDP
+      port: 53
+```
+
+## Monitoring
+
+### ServiceMonitor for Prometheus Operator
+
+```yaml servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ultrabalancer
+  labels:
+    app: ultrabalancer
+spec:
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  endpoints:
+  - port: metrics
+    path: /prometheus
+    interval: 30s
+```
+
+### Grafana Dashboard ConfigMap
+
+```yaml grafana-dashboard.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ultrabalancer-dashboard
+  labels:
+    grafana_dashboard: "1"
+data:
+  ultrabalancer.json: |-
+    {
+      "dashboard": {
+        "title": "UltraBalancer Metrics",
+        "panels": [...]
+      }
+    }
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml .github/workflows/deploy.yml
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+    - name: Deploy
+      run: |
+        kubectl apply -f k8s/
+        kubectl rollout status deployment/ultrabalancer
+```
+
+### ArgoCD Application
+
+```yaml argocd-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ultrabalancer
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/myorg/ultrabalancer-config
+    targetRevision: HEAD
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ultrabalancer
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+```
+
+## Troubleshooting
+
+<Accordion title="Pods not starting">
+  ```bash
+  # Check pod status
+  kubectl get pods -l app=ultrabalancer
+
+  # Check events
+  kubectl describe pod <pod-name>
+
+  # Check logs
+  kubectl logs <pod-name>
+  ```
+</Accordion>
+
+<Accordion title="Service not accessible">
+  ```bash
+  # Check service
+  kubectl get svc ultrabalancer
+
+  # Check endpoints
+  kubectl get endpoints ultrabalancer
+
+  # Test from within cluster
+  kubectl run test --rm -it --image=alpine -- sh
+  wget -qO- http://ultrabalancer:80
+  ```
+</Accordion>
+
+<Accordion title="Health checks failing">
+  ```bash
+  # Check probe configuration
+  kubectl describe pod <pod-name>
+
+  # Test health endpoint
+  kubectl exec <pod-name> -- curl localhost:8080/metrics
+  ```
+</Accordion>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy with Docker containers
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Set up Prometheus and Grafana
+  </Card>
+  <Card title="CI/CD" icon="code-branch" href="/integration/cicd">
+    Automate deployments
+  </Card>
+  <Card title="Performance Tuning" icon="gauge-high" href="/advanced/performance-tuning">
+    Optimize for production
+  </Card>
+</CardGroup>

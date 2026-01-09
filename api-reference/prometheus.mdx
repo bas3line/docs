@@ -1,0 +1,129 @@
+---
+title: '/prometheus Endpoint'
+description: 'Prometheus metrics endpoint with complete metric reference and scraping configuration'
+icon: 'chart-simple'
+---
+
+## Overview
+
+The `/prometheus` endpoint exports metrics in Prometheus format for native Prometheus scraping and monitoring.
+
+**Endpoint:** `GET /prometheus`
+
+**Response Format:** `text/plain; version=0.0.4`
+
+## Available Metrics
+
+### Request Metrics
+
+```prometheus
+# HELP ultrabalancer_requests_total Total number of requests
+# TYPE ultrabalancer_requests_total counter
+ultrabalancer_requests_total 1547823
+
+# HELP ultrabalancer_requests_successful Successful requests
+# TYPE ultrabalancer_requests_successful counter
+ultrabalancer_requests_successful 1542891
+
+# HELP ultrabalancer_requests_failed Failed requests
+# TYPE ultrabalancer_requests_failed counter
+ultrabalancer_requests_failed 4932
+```
+
+### Response Time Histogram
+
+```prometheus
+# HELP ultrabalancer_response_time_seconds Response time in seconds
+# TYPE ultrabalancer_response_time_seconds histogram
+ultrabalancer_response_time_seconds_bucket{le="0.005"} 123456
+ultrabalancer_response_time_seconds_bucket{le="0.01"} 234567
+ultrabalancer_response_time_seconds_bucket{le="0.025"} 345678
+ultrabalancer_response_time_seconds_bucket{le="0.05"} 456789
+ultrabalancer_response_time_seconds_bucket{le="0.1"} 512345
+ultrabalancer_response_time_seconds_bucket{le="0.25"} 545678
+ultrabalancer_response_time_seconds_bucket{le="0.5"} 547123
+ultrabalancer_response_time_seconds_bucket{le="1"} 547823
+ultrabalancer_response_time_seconds_bucket{le="+Inf"} 1547823
+ultrabalancer_response_time_seconds_sum 19247.456
+ultrabalancer_response_time_seconds_count 1547823
+```
+
+### Backend Metrics
+
+```prometheus
+# HELP ultrabalancer_backend_healthy Backend health status (1=healthy, 0=unhealthy)
+# TYPE ultrabalancer_backend_healthy gauge
+ultrabalancer_backend_healthy{backend="192.168.1.10:8080"} 1
+ultrabalancer_backend_healthy{backend="192.168.1.11:8080"} 1
+
+# HELP ultrabalancer_backend_requests_total Total requests per backend
+# TYPE ultrabalancer_backend_requests_total counter
+ultrabalancer_backend_requests_total{backend="192.168.1.10:8080"} 515941
+ultrabalancer_backend_requests_total{backend="192.168.1.11:8080"} 515940
+
+# HELP ultrabalancer_backend_active_connections Active connections per backend
+# TYPE ultrabalancer_backend_active_connections gauge
+ultrabalancer_backend_active_connections{backend="192.168.1.10:8080"} 42
+ultrabalancer_backend_active_connections{backend="192.168.1.11:8080"} 38
+```
+
+## Prometheus Configuration
+
+```yaml prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ultrabalancer'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/prometheus'
+    scrape_interval: 5s
+```
+
+## Common Queries
+
+### Request Rate
+
+```promql
+# Requests per second
+rate(ultrabalancer_requests_total[5m])
+
+# Success rate
+100 * (
+  rate(ultrabalancer_requests_successful[5m]) /
+  rate(ultrabalancer_requests_total[5m])
+)
+
+# Error rate
+rate(ultrabalancer_requests_failed[5m])
+```
+
+### Latency
+
+```promql
+# Average response time
+rate(ultrabalancer_response_time_seconds_sum[5m]) /
+rate(ultrabalancer_response_time_seconds_count[5m])
+
+# p50 latency
+histogram_quantile(0.50, rate(ultrabalancer_response_time_seconds_bucket[5m]))
+
+# p95 latency
+histogram_quantile(0.95, rate(ultrabalancer_response_time_seconds_bucket[5m]))
+
+# p99 latency
+histogram_quantile(0.99, rate(ultrabalancer_response_time_seconds_bucket[5m]))
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Metrics Endpoint" icon="code" href="/api-reference/metrics">
+    JSON metrics endpoint
+  </Card>
+  <Card title="Monitoring" icon="display" href="/integration/monitoring">
+    Complete monitoring setup
+  </Card>
+</CardGroup>

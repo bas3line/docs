@@ -1,0 +1,748 @@
+---
+title: 'Cloud Provider Deployment'
+description: 'Deploy UltraBalancer on AWS, GCP, Azure, and DigitalOcean with platform-specific configurations'
+icon: 'cloud'
+---
+
+## Overview
+
+Deploy UltraBalancer on major cloud platforms with platform-specific optimizations, auto-scaling, and managed services integration.
+
+<CardGroup cols={2}>
+  <Card title="AWS" icon="aws">
+    EC2, ECS, EKS, and Lambda
+  </Card>
+  <Card title="Google Cloud" icon="google">
+    Compute Engine, GKE, Cloud Run
+  </Card>
+  <Card title="Azure" icon="microsoft">
+    VMs, AKS, Container Instances
+  </Card>
+  <Card title="DigitalOcean" icon="digital-ocean">
+    Droplets and Kubernetes
+  </Card>
+</CardGroup>
+
+## AWS Deployment
+
+### EC2 Instance
+
+<Tabs>
+  <Tab title="User Data Script">
+    ```bash user-data.sh
+    #!/bin/bash
+    # AWS EC2 User Data Script
+
+    # Update system
+    yum update -y
+
+    # Install UltraBalancer
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64.tar.gz
+    tar -xzf ultrabalancer-linux-x86_64.tar.gz
+    mv ultrabalancer /usr/local/bin/
+    chmod +x /usr/local/bin/ultrabalancer
+
+    # Create configuration
+    mkdir -p /etc/ultrabalancer
+    cat > /etc/ultrabalancer/config.yaml << 'EOF'
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "least-connections"
+
+    backends:
+      - host: "10.0.1.10"  # Private IP
+        port: 8080
+      - host: "10.0.1.11"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "/var/log/ultrabalancer/access.log"
+    EOF
+
+    # Create systemd service
+    cat > /etc/systemd/system/ultrabalancer.service << 'EOF'
+    [Unit]
+    Description=UltraBalancer
+    After=network.target
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/ultrabalancer -c /etc/ultrabalancer/config.yaml
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+    # Start service
+    systemctl daemon-reload
+    systemctl enable ultrabalancer
+    systemctl start ultrabalancer
+
+    # Configure CloudWatch Logs
+    yum install -y amazon-cloudwatch-agent
+    ```
+  </Tab>
+
+  <Tab title="Terraform">
+    ```hcl main.tf
+    # AWS EC2 Instance for UltraBalancer
+
+    resource "aws_instance" "ultrabalancer" {
+      ami           = "ami-0c55b159cbfafe1f0"  # Amazon Linux 2
+      instance_type = "t3.medium"
+      key_name      = var.key_name
+
+      vpc_security_group_ids = [aws_security_group.ultrabalancer.id]
+      subnet_id              = var.subnet_id
+
+      user_data = file("user-data.sh")
+
+      tags = {
+        Name = "ultrabalancer"
+        Environment = "production"
+      }
+    }
+
+    resource "aws_security_group" "ultrabalancer" {
+      name        = "ultrabalancer-sg"
+      description = "Security group for UltraBalancer"
+      vpc_id      = var.vpc_id
+
+      ingress {
+        from_port   = 80
+        to_port     = 80
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+      }
+
+      ingress {
+        from_port   = 443
+        to_port     = 443
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+      }
+
+      egress {
+        from_port   = 0
+        to_port     = 0
+        protocol    = "-1"
+        cidr_blocks = ["0.0.0.0/0"]
+      }
+    }
+
+    resource "aws_eip" "ultrabalancer" {
+      instance = aws_instance.ultrabalancer.id
+      domain   = "vpc"
+    }
+
+    output "public_ip" {
+      value = aws_eip.ultrabalancer.public_ip
+    }
+    ```
+  </Tab>
+
+  <Tab title="CloudFormation">
+    ```yaml cloudformation.yaml
+    AWSTemplateFormatVersion: '2010-09-09'
+    Description: 'UltraBalancer on EC2'
+
+    Parameters:
+      KeyName:
+        Type: AWS::EC2::KeyPair::KeyName
+        Description: EC2 Key Pair
+
+      VPC:
+        Type: AWS::EC2::VPC::Id
+
+      Subnet:
+        Type: AWS::EC2::Subnet::Id
+
+    Resources:
+      UltraBalancerInstance:
+        Type: AWS::EC2::Instance
+        Properties:
+          ImageId: ami-0c55b159cbfafe1f0
+          InstanceType: t3.medium
+          KeyName: !Ref KeyName
+          SubnetId: !Ref Subnet
+          SecurityGroupIds:
+            - !Ref UltraBalancerSG
+          UserData:
+            Fn::Base64: !Sub |
+              #!/bin/bash
+              yum update -y
+              curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64.tar.gz
+              tar -xzf ultrabalancer-linux-x86_64.tar.gz
+              mv ultrabalancer /usr/local/bin/
+              # ... rest of setup
+          Tags:
+            - Key: Name
+              Value: UltraBalancer
+
+      UltraBalancerSG:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupDescription: UltraBalancer Security Group
+          VpcId: !Ref VPC
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 443
+              ToPort: 443
+              CidrIp: 0.0.0.0/0
+
+    Outputs:
+      InstanceId:
+        Value: !Ref UltraBalancerInstance
+      PublicIP:
+        Value: !GetAtt UltraBalancerInstance.PublicIp
+    ```
+  </Tab>
+</Tabs>
+
+### ECS Fargate
+
+```json ecs-task-definition.json
+{
+  "family": "ultrabalancer",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "ultrabalancer",
+      "image": "ultrabalancer/ultrabalancer:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ULTRA_ALGORITHM",
+          "value": "least-connections"
+        },
+        {
+          "name": "ULTRA_BACKENDS",
+          "value": "backend1.local:8080,backend2.local:8080"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ultrabalancer",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
+```
+
+### EKS (Kubernetes)
+
+```yaml eks-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+    spec:
+      serviceAccountName: ultrabalancer
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+spec:
+  type: LoadBalancer
+  selector:
+    app: ultrabalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+## Google Cloud Platform
+
+### Compute Engine
+
+<Tabs>
+  <Tab title="gcloud">
+    ```bash
+    # Create instance with startup script
+    gcloud compute instances create ultrabalancer \
+      --machine-type=n1-standard-2 \
+      --zone=us-central1-a \
+      --image-family=ubuntu-2004-lts \
+      --image-project=ubuntu-os-cloud \
+      --boot-disk-size=20GB \
+      --tags=http-server,https-server \
+      --metadata-from-file=startup-script=startup.sh
+
+    # Create firewall rules
+    gcloud compute firewall-rules create allow-http \
+      --allow=tcp:80 \
+      --target-tags=http-server
+
+    gcloud compute firewall-rules create allow-https \
+      --allow=tcp:443 \
+      --target-tags=https-server
+    ```
+  </Tab>
+
+  <Tab title="Terraform">
+    ```hcl gcp.tf
+    resource "google_compute_instance" "ultrabalancer" {
+      name         = "ultrabalancer"
+      machine_type = "n1-standard-2"
+      zone         = "us-central1-a"
+
+      boot_disk {
+        initialize_params {
+          image = "ubuntu-os-cloud/ubuntu-2004-lts"
+        }
+      }
+
+      network_interface {
+        network = "default"
+        access_config {
+          // Ephemeral public IP
+        }
+      }
+
+      metadata_startup_script = file("startup.sh")
+
+      tags = ["http-server", "https-server"]
+    }
+
+    resource "google_compute_firewall" "http" {
+      name    = "allow-http"
+      network = "default"
+
+      allow {
+        protocol = "tcp"
+        ports    = ["80"]
+      }
+
+      target_tags = ["http-server"]
+    }
+    ```
+  </Tab>
+
+  <Tab title="Startup Script">
+    ```bash startup.sh
+    #!/bin/bash
+
+    # Install UltraBalancer
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64.tar.gz
+    tar -xzf ultrabalancer-linux-x86_64.tar.gz
+    sudo mv ultrabalancer /usr/local/bin/
+
+    # Create config
+    sudo mkdir -p /etc/ultrabalancer
+    sudo tee /etc/ultrabalancer/config.yaml << 'EOF'
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "least-connections"
+
+    backends:
+      - host: "backend1.c.project-id.internal"
+        port: 8080
+      - host: "backend2.c.project-id.internal"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+    EOF
+
+    # Create systemd service
+    sudo tee /etc/systemd/system/ultrabalancer.service << 'EOF'
+    [Unit]
+    Description=UltraBalancer
+    After=network.target
+
+    [Service]
+    ExecStart=/usr/local/bin/ultrabalancer -c /etc/ultrabalancer/config.yaml
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable ultrabalancer
+    sudo systemctl start ultrabalancer
+    ```
+  </Tab>
+</Tabs>
+
+### GKE (Kubernetes)
+
+```yaml gke-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+    spec:
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: ultrabalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+## Microsoft Azure
+
+### Virtual Machine
+
+<Tabs>
+  <Tab title="Azure CLI">
+    ```bash
+    # Create resource group
+    az group create --name ultrabalancer-rg --location eastus
+
+    # Create VM
+    az vm create \
+      --resource-group ultrabalancer-rg \
+      --name ultrabalancer-vm \
+      --image UbuntuLTS \
+      --size Standard_D2s_v3 \
+      --admin-username azureuser \
+      --generate-ssh-keys \
+      --custom-data cloud-init.txt
+
+    # Open ports
+    az vm open-port --resource-group ultrabalancer-rg --name ultrabalancer-vm --port 80
+    az vm open-port --resource-group ultrabalancer-rg --name ultrabalancer-vm --port 443
+
+    # Get public IP
+    az vm show --resource-group ultrabalancer-rg --name ultrabalancer-vm -d --query publicIps -o tsv
+    ```
+  </Tab>
+
+  <Tab title="ARM Template">
+    ```json arm-template.json
+    {
+      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+      "contentVersion": "1.0.0.0",
+      "resources": [
+        {
+          "type": "Microsoft.Compute/virtualMachines",
+          "apiVersion": "2021-03-01",
+          "name": "ultrabalancer-vm",
+          "location": "[resourceGroup().location]",
+          "properties": {
+            "hardwareProfile": {
+              "vmSize": "Standard_D2s_v3"
+            },
+            "osProfile": {
+              "computerName": "ultrabalancer",
+              "adminUsername": "azureuser",
+              "customData": "[base64(parameters('cloudInit'))]"
+            },
+            "storageProfile": {
+              "imageReference": {
+                "publisher": "Canonical",
+                "offer": "UbuntuServer",
+                "sku": "20.04-LTS",
+                "version": "latest"
+              }
+            }
+          }
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="Cloud-Init">
+    ```yaml cloud-init.txt
+    #cloud-config
+    package_update: true
+    packages:
+      - curl
+
+    runcmd:
+      - curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64.tar.gz
+      - tar -xzf ultrabalancer-linux-x86_64.tar.gz
+      - mv ultrabalancer /usr/local/bin/
+      - mkdir -p /etc/ultrabalancer
+      - |
+        cat > /etc/ultrabalancer/config.yaml << 'EOF'
+        listen_address: "0.0.0.0"
+        listen_port: 80
+        algorithm: "least-connections"
+        backends:
+          - host: "backend1.internal"
+            port: 8080
+          - host: "backend2.internal"
+            port: 8080
+        EOF
+      - |
+        cat > /etc/systemd/system/ultrabalancer.service << 'EOF'
+        [Unit]
+        Description=UltraBalancer
+        After=network.target
+        [Service]
+        ExecStart=/usr/local/bin/ultrabalancer -c /etc/ultrabalancer/config.yaml
+        Restart=always
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+      - systemctl daemon-reload
+      - systemctl enable ultrabalancer
+      - systemctl start ultrabalancer
+    ```
+  </Tab>
+</Tabs>
+
+### AKS (Kubernetes)
+
+```yaml aks-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+    spec:
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:latest
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: ultrabalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+## DigitalOcean
+
+### Droplet
+
+```bash
+# Create droplet with doctl
+doctl compute droplet create ultrabalancer \
+  --image ubuntu-20-04-x64 \
+  --size s-2vcpu-4gb \
+  --region nyc1 \
+  --ssh-keys YOUR_SSH_KEY_ID \
+  --user-data-file cloud-init.yaml
+
+# Or via Terraform
+```
+
+```hcl do-terraform.tf
+resource "digitalocean_droplet" "ultrabalancer" {
+  name   = "ultrabalancer"
+  size   = "s-2vcpu-4gb"
+  image  = "ubuntu-20-04-x64"
+  region = "nyc1"
+  user_data = file("cloud-init.yaml")
+
+  tags = ["production", "load-balancer"]
+}
+
+resource "digitalocean_firewall" "ultrabalancer" {
+  name = "ultrabalancer-fw"
+
+  droplet_ids = [digitalocean_droplet.ultrabalancer.id]
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "80"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = "443"
+    source_addresses = ["0.0.0.0/0", "::/0"]
+  }
+
+  outbound_rule {
+    protocol              = "tcp"
+    port_range            = "1-65535"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+  }
+}
+
+output "ip_address" {
+  value = digitalocean_droplet.ultrabalancer.ipv4_address
+}
+```
+
+### DigitalOcean Kubernetes
+
+```yaml do-k8s-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrabalancer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultrabalancer
+  template:
+    metadata:
+      labels:
+        app: ultrabalancer
+    spec:
+      containers:
+      - name: ultrabalancer
+        image: ultrabalancer/ultrabalancer:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrabalancer
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-protocol: "http"
+    service.beta.kubernetes.io/do-loadbalancer-algorithm: "least_connections"
+spec:
+  type: LoadBalancer
+  selector:
+    app: ultrabalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+```
+
+## Cost Optimization
+
+<Accordion title="AWS Cost Optimization">
+  - Use **t3/t3a** instances with burstable CPU
+  - Enable **Spot Instances** for non-production
+  - Use **Reserved Instances** for long-term savings
+  - Enable **auto-scaling** to match demand
+  - Use **S3** for log archival
+</Accordion>
+
+<Accordion title="GCP Cost Optimization">
+  - Use **e2** machine types for cost savings
+  - Enable **preemptible VMs** for dev/test
+  - Use **committed use discounts**
+  - Enable **auto-scaling**
+  - Use **Cloud Storage** for logs
+</Accordion>
+
+<Accordion title="Azure Cost Optimization">
+  - Use **B-series** VMs for variable workloads
+  - Enable **spot VMs** for non-critical workloads
+  - Use **reserved instances**
+  - Enable **auto-scaling**
+  - Use **Azure Blob Storage** for logs
+</Accordion>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Linux Server" icon="server" href="/deployment/linux-server">
+    Deploy on bare metal servers
+  </Card>
+  <Card title="Docker" icon="docker" href="/deployment/docker">
+    Container deployment
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+    Kubernetes manifests and Helm
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Cloud monitoring setup
+  </Card>
+</CardGroup>

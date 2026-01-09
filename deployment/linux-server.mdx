@@ -1,0 +1,726 @@
+---
+title: 'Linux Server Deployment'
+description: 'Deploy UltraBalancer on bare metal Linux servers (Ubuntu, Debian, CentOS, Arch Linux)'
+icon: 'server'
+---
+
+## Overview
+
+Deploy UltraBalancer directly on Linux servers for maximum performance and control. This guide covers all major Linux distributions.
+
+<CardGroup cols={2}>
+  <Card title="Ubuntu/Debian" icon="ubuntu">
+    Debian-based distributions (apt)
+  </Card>
+  <Card title="CentOS/RHEL" icon="redhat">
+    RedHat-based distributions (yum/dnf)
+  </Card>
+  <Card title="Arch Linux" icon="linux">
+    Rolling release (pacman)
+  </Card>
+  <Card title="Alpine Linux" icon="mountain">
+    Lightweight containers (apk)
+  </Card>
+</CardGroup>
+
+## Installation
+
+### Ubuntu/Debian
+
+<Steps>
+  <Step title="Add Repository">
+    ```bash
+    # Add UltraBalancer GPG key
+    curl -fsSL https://packages.ultrabalancer.com/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/ultrabalancer.gpg
+
+    # Add repository
+    echo "deb [signed-by=/usr/share/keyrings/ultrabalancer.gpg] https://packages.ultrabalancer.com/deb stable main" | sudo tee /etc/apt/sources.list.d/ultrabalancer.list
+
+    # Update package list
+    sudo apt update
+    ```
+  </Step>
+
+  <Step title="Install UltraBalancer">
+    ```bash
+    sudo apt install ultrabalancer -y
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    ultrabalancer --version
+    # Output: ultrabalancer 2.0.0
+    ```
+  </Step>
+</Steps>
+
+### CentOS/RHEL
+
+<Steps>
+  <Step title="Add Repository">
+    ```bash
+    # Create repo file
+    sudo tee /etc/yum.repos.d/ultrabalancer.repo << 'EOF'
+    [ultrabalancer]
+    name=UltraBalancer Repository
+    baseurl=https://packages.ultrabalancer.com/rpm/stable
+    enabled=1
+    gpgcheck=1
+    gpgkey=https://packages.ultrabalancer.com/gpg.key
+    EOF
+    ```
+  </Step>
+
+  <Step title="Install UltraBalancer">
+    ```bash
+    # CentOS 7
+    sudo yum install ultrabalancer -y
+
+    # CentOS 8+ / RHEL 8+
+    sudo dnf install ultrabalancer -y
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    ultrabalancer --version
+    ```
+  </Step>
+</Steps>
+
+### Arch Linux
+
+<Steps>
+  <Step title="Install from AUR">
+    ```bash
+    # Using yay
+    yay -S ultrabalancer
+
+    # Or using paru
+    paru -S ultrabalancer
+
+    # Manual install
+    git clone https://aur.archlinux.org/ultrabalancer.git
+    cd ultrabalancer
+    makepkg -si
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    ultrabalancer --version
+    ```
+  </Step>
+</Steps>
+
+### Alpine Linux
+
+```bash
+# Add testing repository
+echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" | sudo tee -a /etc/apk/repositories
+
+# Update package index
+sudo apk update
+
+# Install UltraBalancer
+sudo apk add ultrabalancer@testing
+
+# Verify
+ultrabalancer --version
+```
+
+### Binary Installation (All Distributions)
+
+<Tabs>
+  <Tab title="x86_64">
+    ```bash
+    # Download latest release
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64.tar.gz
+
+    # Extract
+    tar -xzf ultrabalancer-linux-x86_64.tar.gz
+
+    # Install
+    sudo mv ultrabalancer /usr/local/bin/
+    sudo chmod +x /usr/local/bin/ultrabalancer
+
+    # Verify
+    ultrabalancer --version
+    ```
+  </Tab>
+
+  <Tab title="aarch64 (ARM64)">
+    ```bash
+    # Download ARM64 binary
+    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-aarch64.tar.gz
+
+    # Extract and install
+    tar -xzf ultrabalancer-linux-aarch64.tar.gz
+    sudo mv ultrabalancer /usr/local/bin/
+    sudo chmod +x /usr/local/bin/ultrabalancer
+
+    # Verify
+    ultrabalancer --version
+    ```
+  </Tab>
+
+  <Tab title="Build from Source">
+    ```bash
+    # Install Rust
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    source $HOME/.cargo/env
+
+    # Clone repository
+    git clone https://github.com/bas3line/ultrabalancer.git
+    cd ultrabalancer
+
+    # Build release binary
+    cargo build --release
+
+    # Install
+    sudo cp target/release/ultrabalancer /usr/local/bin/
+    sudo chmod +x /usr/local/bin/ultrabalancer
+
+    # Verify
+    ultrabalancer --version
+    ```
+  </Tab>
+</Tabs>
+
+## Configuration
+
+### Create Configuration File
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    # Create config directory
+    sudo mkdir -p /etc/ultrabalancer
+
+    # Create configuration file
+    sudo tee /etc/ultrabalancer/config.yaml << 'EOF'
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "least-connections"
+
+    backends:
+      - host: "backend1.internal"
+        port: 8080
+      - host: "backend2.internal"
+        port: 8080
+      - host: "backend3.internal"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+      path: "/health"
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "/var/log/ultrabalancer/access.log"
+    EOF
+
+    # Create log directory
+    sudo mkdir -p /var/log/ultrabalancer
+    sudo chown ultrabalancer:ultrabalancer /var/log/ultrabalancer
+    ```
+  </Tab>
+
+  <Tab title="CentOS/RHEL">
+    ```bash
+    # Create config directory
+    sudo mkdir -p /etc/ultrabalancer
+
+    # Create configuration file
+    sudo tee /etc/ultrabalancer/config.yaml << 'EOF'
+    listen_address: "0.0.0.0"
+    listen_port: 80
+    algorithm: "least-connections"
+
+    backends:
+      - host: "backend1.internal"
+        port: 8080
+      - host: "backend2.internal"
+        port: 8080
+
+    health_check:
+      enabled: true
+      interval_ms: 5000
+
+    logging:
+      level: "info"
+      format: "json"
+      output: "/var/log/ultrabalancer/access.log"
+    EOF
+
+    # Set SELinux context (if enabled)
+    sudo semanage fcontext -a -t bin_t "/usr/local/bin/ultrabalancer"
+    sudo restorecon -v /usr/local/bin/ultrabalancer
+
+    # Create log directory
+    sudo mkdir -p /var/log/ultrabalancer
+    sudo chown ultrabalancer:ultrabalancer /var/log/ultrabalancer
+    ```
+  </Tab>
+
+  <Tab title="Arch Linux">
+    ```bash
+    # Create config directory
+    sudo mkdir -p /etc/ultrabalancer
+
+    # Create configuration file
+    sudo nano /etc/ultrabalancer/config.yaml
+
+    # Create log directory
+    sudo mkdir -p /var/log/ultrabalancer
+    sudo chown ultrabalancer:ultrabalancer /var/log/ultrabalancer
+    ```
+  </Tab>
+</Tabs>
+
+### Validate Configuration
+
+```bash
+# Validate config file
+sudo ultrabalancer validate -c /etc/ultrabalancer/config.yaml
+
+# Output on success
+✓ Configuration is valid
+
+Summary:
+  Listen: 0.0.0.0:80
+  Algorithm: least-connections
+  Backends: 3
+  Health Checks: enabled
+```
+
+## Running UltraBalancer
+
+### Manual Start
+
+<CodeGroup>
+
+```bash Foreground
+# Run in foreground (for testing)
+sudo ultrabalancer -c /etc/ultrabalancer/config.yaml
+```
+
+```bash Background
+# Run in background
+sudo ultrabalancer -c /etc/ultrabalancer/config.yaml &
+
+# Or use nohup
+nohup sudo ultrabalancer -c /etc/ultrabalancer/config.yaml > /var/log/ultrabalancer/output.log 2>&1 &
+```
+
+```bash Screen/Tmux
+# Using screen
+screen -S ultrabalancer
+sudo ultrabalancer -c /etc/ultrabalancer/config.yaml
+# Detach: Ctrl+A, D
+
+# Using tmux
+tmux new -s ultrabalancer
+sudo ultrabalancer -c /etc/ultrabalancer/config.yaml
+# Detach: Ctrl+B, D
+```
+
+</CodeGroup>
+
+### Systemd Service (Recommended)
+
+See the [Systemd guide](/deployment/systemd) for complete service configuration.
+
+Quick setup:
+
+```bash
+# Create systemd service
+sudo tee /etc/systemd/system/ultrabalancer.service << 'EOF'
+[Unit]
+Description=UltraBalancer Load Balancer
+After=network.target
+
+[Service]
+Type=simple
+User=ultrabalancer
+Group=ultrabalancer
+ExecStart=/usr/local/bin/ultrabalancer -c /etc/ultrabalancer/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Create user
+sudo useradd -r -s /bin/false ultrabalancer
+
+# Enable and start
+sudo systemctl daemon-reload
+sudo systemctl enable ultrabalancer
+sudo systemctl start ultrabalancer
+
+# Check status
+sudo systemctl status ultrabalancer
+```
+
+## Firewall Configuration
+
+### UFW (Ubuntu/Debian)
+
+```bash
+# Allow HTTP
+sudo ufw allow 80/tcp
+
+# Allow HTTPS
+sudo ufw allow 443/tcp
+
+# Allow metrics endpoint (optional, restrict to monitoring systems)
+sudo ufw allow from 10.0.0.0/8 to any port 8080 proto tcp
+
+# Enable firewall
+sudo ufw enable
+
+# Check status
+sudo ufw status
+```
+
+### firewalld (CentOS/RHEL)
+
+```bash
+# Allow HTTP
+sudo firewall-cmd --permanent --add-service=http
+
+# Allow HTTPS
+sudo firewall-cmd --permanent --add-service=https
+
+# Allow metrics from specific subnet
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.0.0.0/8" port port="8080" protocol="tcp" accept'
+
+# Reload firewall
+sudo firewall-cmd --reload
+
+# Check status
+sudo firewall-cmd --list-all
+```
+
+### iptables
+
+```bash
+# Allow HTTP
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# Allow HTTPS
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Allow metrics from specific subnet
+sudo iptables -A INPUT -s 10.0.0.0/8 -p tcp --dport 8080 -j ACCEPT
+
+# Save rules
+sudo iptables-save | sudo tee /etc/iptables/rules.v4
+
+# Or on CentOS/RHEL
+sudo service iptables save
+```
+
+## Port Binding
+
+### Bind to Privileged Ports (< 1024)
+
+<Tabs>
+  <Tab title="Using setcap">
+    ```bash
+    # Grant capability to bind privileged ports
+    sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/ultrabalancer
+
+    # Now can run without sudo
+    ultrabalancer -c /etc/ultrabalancer/config.yaml
+    ```
+  </Tab>
+
+  <Tab title="Using authbind">
+    ```bash
+    # Install authbind
+    sudo apt install authbind  # Ubuntu/Debian
+    sudo yum install authbind  # CentOS
+
+    # Allow port 80
+    sudo touch /etc/authbind/byport/80
+    sudo chmod 755 /etc/authbind/byport/80
+    sudo chown ultrabalancer /etc/authbind/byport/80
+
+    # Run with authbind
+    authbind --deep ultrabalancer -c /etc/ultrabalancer/config.yaml
+    ```
+  </Tab>
+
+  <Tab title="Port Forwarding">
+    ```bash
+    # Forward port 80 to 8080 (run as non-root on 8080)
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+
+    # Run on unprivileged port
+    ultrabalancer -p 8080 -c /etc/ultrabalancer/config.yaml
+    ```
+  </Tab>
+
+  <Tab title="Run as Root">
+    ```bash
+    # Not recommended, but works
+    sudo ultrabalancer -c /etc/ultrabalancer/config.yaml
+    ```
+  </Tab>
+</Tabs>
+
+## Performance Tuning
+
+### System Limits
+
+```bash
+# Increase file descriptor limit
+sudo tee -a /etc/security/limits.conf << 'EOF'
+ultrabalancer soft nofile 65535
+ultrabalancer hard nofile 65535
+EOF
+
+# Or for current session
+ulimit -n 65535
+
+# Increase connection tracking
+sudo sysctl -w net.netfilter.nf_conntrack_max=1048576
+
+# Optimize TCP settings
+sudo tee -a /etc/sysctl.conf << 'EOF'
+# TCP performance
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 8192
+net.core.netdev_max_backlog = 65535
+
+# Connection tracking
+net.netfilter.nf_conntrack_max = 1048576
+
+# TCP tuning
+net.ipv4.tcp_fin_timeout = 15
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_max_tw_buckets = 1440000
+EOF
+
+# Apply settings
+sudo sysctl -p
+```
+
+### CPU Affinity
+
+```bash
+# Pin to specific CPUs (0-7)
+taskset -c 0-7 ultrabalancer -c /etc/ultrabalancer/config.yaml
+
+# Or in systemd service
+[Service]
+CPUAffinity=0-7
+```
+
+## Monitoring
+
+### Check Status
+
+```bash
+# Check if running
+ps aux | grep ultrabalancer
+
+# Check listening ports
+sudo netstat -tlnp | grep ultrabalancer
+# Or
+sudo ss -tlnp | grep ultrabalancer
+
+# Check metrics
+curl http://localhost:8080/metrics
+
+# Check logs
+sudo tail -f /var/log/ultrabalancer/access.log
+```
+
+### Log Rotation
+
+```bash
+# Create logrotate config
+sudo tee /etc/logrotate.d/ultrabalancer << 'EOF'
+/var/log/ultrabalancer/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 ultrabalancer ultrabalancer
+    sharedscripts
+    postrotate
+        killall -USR1 ultrabalancer
+    endscript
+}
+EOF
+
+# Test logrotate
+sudo logrotate -d /etc/logrotate.d/ultrabalancer
+
+# Force rotation
+sudo logrotate -f /etc/logrotate.d/ultrabalancer
+```
+
+## Security Hardening
+
+### Create Dedicated User
+
+```bash
+# Create system user
+sudo useradd -r -s /bin/false -d /var/lib/ultrabalancer ultrabalancer
+
+# Set ownership
+sudo chown -R ultrabalancer:ultrabalancer /etc/ultrabalancer
+sudo chown -R ultrabalancer:ultrabalancer /var/log/ultrabalancer
+```
+
+### File Permissions
+
+```bash
+# Restrict config file access
+sudo chmod 640 /etc/ultrabalancer/config.yaml
+sudo chown root:ultrabalancer /etc/ultrabalancer/config.yaml
+
+# Restrict binary
+sudo chmod 755 /usr/local/bin/ultrabalancer
+sudo chown root:root /usr/local/bin/ultrabalancer
+```
+
+### SELinux (CentOS/RHEL)
+
+```bash
+# Create SELinux policy
+sudo semanage port -a -t http_port_t -p tcp 8080
+
+# Allow network connections
+sudo setsebool -P httpd_can_network_connect 1
+
+# Check SELinux denials
+sudo ausearch -m avc -ts recent | grep ultrabalancer
+```
+
+### AppArmor (Ubuntu/Debian)
+
+```bash
+# Create AppArmor profile
+sudo tee /etc/apparmor.d/usr.local.bin.ultrabalancer << 'EOF'
+#include <tunables/global>
+
+/usr/local/bin/ultrabalancer {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  /usr/local/bin/ultrabalancer mr,
+  /etc/ultrabalancer/** r,
+  /var/log/ultrabalancer/* w,
+
+  network inet stream,
+  network inet6 stream,
+}
+EOF
+
+# Load profile
+sudo apparmor_parser -r /etc/apparmor.d/usr.local.bin.ultrabalancer
+```
+
+## Troubleshooting
+
+<Accordion title="Permission denied on port 80">
+  **Solution:** Use one of the privileged port binding methods above (setcap, authbind, or port forwarding).
+
+  ```bash
+  sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/ultrabalancer
+  ```
+</Accordion>
+
+<Accordion title="Cannot connect to backends">
+  **Check:** Network connectivity and firewall rules
+
+  ```bash
+  # Test backend connectivity
+  curl http://backend1.internal:8080/health
+
+  # Check firewall
+  sudo iptables -L -n
+
+  # Check routes
+  ip route show
+  ```
+</Accordion>
+
+<Accordion title="High CPU usage">
+  **Check:** Worker count and system limits
+
+  ```bash
+  # Adjust workers in config
+  workers: 4  # Instead of auto
+
+  # Check current load
+  top -p $(pgrep ultrabalancer)
+  ```
+</Accordion>
+
+<Accordion title="Out of file descriptors">
+  **Solution:** Increase system limits
+
+  ```bash
+  # Check current limit
+  ulimit -n
+
+  # Increase limit
+  sudo tee -a /etc/security/limits.conf << 'EOF'
+  ultrabalancer soft nofile 65535
+  ultrabalancer hard nofile 65535
+  EOF
+
+  # Restart service
+  sudo systemctl restart ultrabalancer
+  ```
+</Accordion>
+
+## Upgrading
+
+```bash
+# Stop service
+sudo systemctl stop ultrabalancer
+
+# Backup config
+sudo cp /etc/ultrabalancer/config.yaml /etc/ultrabalancer/config.yaml.backup
+
+# Upgrade
+sudo apt update && sudo apt upgrade ultrabalancer  # Ubuntu/Debian
+sudo yum update ultrabalancer  # CentOS/RHEL
+
+# Start service
+sudo systemctl start ultrabalancer
+
+# Verify
+ultrabalancer --version
+sudo systemctl status ultrabalancer
+```
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Systemd Service" icon="gear" href="/deployment/systemd">
+    Configure systemd service for production
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy with Docker containers
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+    Deploy on Kubernetes
+  </Card>
+  <Card title="Monitoring" icon="chart-line" href="/integration/monitoring">
+    Set up monitoring and alerts
+  </Card>
+</CardGroup>
