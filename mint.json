@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "linden",
+  "theme": "quill",
   "name": "UltraBalancer",
   "description": "Production-grade HTTP load balancer written in Rust",
   "colors": {
