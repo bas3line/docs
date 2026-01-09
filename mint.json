@@ -6,12 +6,15 @@
   "colors": {
     "primary": "#FDB022",
     "light": "#FBBF24",
-    "dark": "#F59E0B",
-    "background": {
-      "light": "#FEFEFE",
-      "dark": "#0F0F0F"
+    "dark": "#F59E0B"
+  },
+  "background": {
+    "color": {
+      "light": "#FEFCF8",
+      "dark": "#151413"
     }
   },
+  "isWhiteLabeled": true,
   "favicon": "/favicon.svg",
   "navigation": [
     {
