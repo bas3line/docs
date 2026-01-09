@@ -120,15 +120,15 @@
         "links": [
           {
             "label": "Documentation",
-            "href": "https://docs.ultrabalancer.com"
+            "url": "https://docs.ultrabalancer.com"
           },
           {
             "label": "Installation",
-            "href": "/installation"
+            "url": "/installation"
           },
           {
             "label": "Examples",
-            "href": "/configuration/examples"
+            "url": "/configuration/examples"
           }
         ]
       },
@@ -137,15 +137,15 @@
         "links": [
           {
             "label": "GitHub",
-            "href": "https://github.com/bas3line/ultrabalancer"
+            "url": "https://github.com/bas3line/ultrabalancer"
           },
           {
             "label": "Issues",
-            "href": "https://github.com/bas3line/ultrabalancer/issues"
+            "url": "https://github.com/bas3line/ultrabalancer/issues"
           },
           {
             "label": "Contact",
-            "href": "mailto:kiraa@tuta.io"
+            "url": "mailto:kiraa@tuta.io"
           }
         ]
       }
