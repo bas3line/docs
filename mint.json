@@ -116,42 +116,6 @@
     "socials": {
       "github": "https://github.com/bas3line/ultrabalancer",
       "twitter": "https://twitter.com/bas3line"
-    },
-    "links": [
-      {
-        "header": "Resources",
-        "links": [
-          {
-            "label": "Documentation",
-            "url": "https://docs.ultrabalancer.com"
-          },
-          {
-            "label": "Installation",
-            "url": "/installation"
-          },
-          {
-            "label": "Examples",
-            "url": "/configuration/examples"
-          }
-        ]
-      },
-      {
-        "header": "Community",
-        "links": [
-          {
-            "label": "GitHub",
-            "url": "https://github.com/bas3line/ultrabalancer"
-          },
-          {
-            "label": "Issues",
-            "url": "https://github.com/bas3line/ultrabalancer/issues"
-          },
-          {
-            "label": "Contact",
-            "url": "mailto:kiraa@tuta.io"
-          }
-        ]
-      }
-    ]
+    }
   }
 }
