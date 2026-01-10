@@ -1,0 +1,547 @@
+---
+title: 'Admin API'
+description: 'Runtime backend management API for adding, removing, and draining backends'
+---
+
+## Overview
+
+The Admin API provides runtime control over backend servers without requiring a restart. Manage backends dynamically for zero-downtime deployments, scaling, and maintenance operations.
+
+<Warning>
+The Admin API should be protected in production. Use the `admin.api_key` configuration option to require authentication.
+</Warning>
+
+## Configuration
+
+```yaml
+admin:
+  enabled: true
+  api_key: "your-secret-key"  # Required for production
+```
+
+## Authentication
+
+All Admin API requests require the `X-API-Key` header when `api_key` is configured:
+
+```bash
+curl -H "X-API-Key: your-secret-key" http://localhost:8080/admin/backends
+```
+
+## Endpoints
+
+### List Backends
+
+Get all configured backends with their current status.
+
+```
+GET /admin/backends
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backends listed",
+  "data": [
+    {
+      "address": "192.168.1.10:8080",
+      "weight": 100,
+      "healthy": true,
+      "active_connections": 42,
+      "total_requests": 150000
+    },
+    {
+      "address": "192.168.1.11:8080",
+      "weight": 100,
+      "healthy": true,
+      "active_connections": 38,
+      "total_requests": 148000
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash cURL
+curl -H "X-API-Key: your-secret-key" \
+  http://localhost:8080/admin/backends
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'http://localhost:8080/admin/backends',
+    headers={'X-API-Key': 'your-secret-key'}
+)
+backends = response.json()['data']
+for backend in backends:
+    print(f"{backend['address']}: {backend['active_connections']} connections")
+```
+
+```javascript Node.js
+const response = await fetch('http://localhost:8080/admin/backends', {
+  headers: { 'X-API-Key': 'your-secret-key' }
+});
+const { data } = await response.json();
+console.log(data);
+```
+
+</CodeGroup>
+
+---
+
+### Add Backend
+
+Add a new backend server at runtime.
+
+```
+POST /admin/backends
+```
+
+**Request Body:**
+
+```json
+{
+  "address": "192.168.1.12:8080",
+  "weight": 100
+}
+```
+
+<ParamField body="address" type="string" required>
+  Backend address in `host:port` format
+</ParamField>
+
+<ParamField body="weight" type="integer" default="100">
+  Backend weight for weighted algorithms (1-1000)
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backend added"
+}
+```
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST \
+  -H "X-API-Key: your-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"address": "192.168.1.12:8080", "weight": 100}' \
+  http://localhost:8080/admin/backends
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:8080/admin/backends',
+    headers={'X-API-Key': 'your-secret-key'},
+    json={'address': '192.168.1.12:8080', 'weight': 100}
+)
+print(response.json())
+```
+
+```javascript Node.js
+const response = await fetch('http://localhost:8080/admin/backends', {
+  method: 'POST',
+  headers: {
+    'X-API-Key': 'your-secret-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ address: '192.168.1.12:8080', weight: 100 })
+});
+```
+
+</CodeGroup>
+
+---
+
+### Remove Backend
+
+Remove a backend server immediately.
+
+```
+DELETE /admin/backends
+```
+
+**Request Body:**
+
+```json
+{
+  "address": "192.168.1.12:8080"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backend removed"
+}
+```
+
+<Warning>
+Active connections to this backend will be terminated. Use drain instead for graceful removal.
+</Warning>
+
+<CodeGroup>
+
+```bash cURL
+curl -X DELETE \
+  -H "X-API-Key: your-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"address": "192.168.1.12:8080"}' \
+  http://localhost:8080/admin/backends
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+    'http://localhost:8080/admin/backends',
+    headers={'X-API-Key': 'your-secret-key'},
+    json={'address': '192.168.1.12:8080'}
+)
+```
+
+</CodeGroup>
+
+---
+
+### Update Weight
+
+Change a backend's weight for weighted load balancing.
+
+```
+PUT /admin/backends/weight
+```
+
+**Request Body:**
+
+```json
+{
+  "address": "192.168.1.10:8080",
+  "weight": 200
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Weight updated"
+}
+```
+
+<CodeGroup>
+
+```bash cURL
+curl -X PUT \
+  -H "X-API-Key: your-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"address": "192.168.1.10:8080", "weight": 200}' \
+  http://localhost:8080/admin/backends/weight
+```
+
+```python Python
+import requests
+
+response = requests.put(
+    'http://localhost:8080/admin/backends/weight',
+    headers={'X-API-Key': 'your-secret-key'},
+    json={'address': '192.168.1.10:8080', 'weight': 200}
+)
+```
+
+</CodeGroup>
+
+---
+
+### Drain Backend
+
+Stop sending new requests to a backend while allowing existing connections to complete. Use this for graceful maintenance.
+
+```
+POST /admin/backends/drain
+```
+
+**Request Body:**
+
+```json
+{
+  "address": "192.168.1.10:8080"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backend draining"
+}
+```
+
+<Tip>
+After draining, monitor the backend's `active_connections` via the list endpoint. Once it reaches 0, you can safely remove or restart the backend.
+</Tip>
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST \
+  -H "X-API-Key: your-secret-key" \
+  -H "Content-Type: application/json" \
+  -d '{"address": "192.168.1.10:8080"}' \
+  http://localhost:8080/admin/backends/drain
+```
+
+```bash Drain and Wait Script
+#!/bin/bash
+API_KEY="your-secret-key"
+BACKEND="192.168.1.10:8080"
+
+# Start draining
+curl -X POST -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"address\": \"$BACKEND\"}" \
+  http://localhost:8080/admin/backends/drain
+
+# Wait for connections to drain
+while true; do
+  conns=$(curl -s -H "X-API-Key: $API_KEY" \
+    http://localhost:8080/admin/backends | \
+    jq -r ".data[] | select(.address==\"$BACKEND\") | .active_connections")
+
+  if [ "$conns" = "0" ]; then
+    echo "Backend drained, safe to remove"
+    break
+  fi
+  echo "Waiting... $conns connections remaining"
+  sleep 2
+done
+```
+
+</CodeGroup>
+
+---
+
+### Undrain Backend
+
+Resume sending traffic to a drained backend.
+
+```
+POST /admin/backends/undrain
+```
+
+**Request Body:**
+
+```json
+{
+  "address": "192.168.1.10:8080"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backend undraining"
+}
+```
+
+---
+
+### Admin Health Check
+
+Check if the Admin API is responding.
+
+```
+GET /admin/health
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Admin API healthy"
+}
+```
+
+---
+
+### Reload Configuration
+
+Trigger a configuration reload from the config file.
+
+```
+POST /admin/reload
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Config reload triggered"
+}
+```
+
+## Error Responses
+
+All error responses follow this format:
+
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+| Status Code | Message | Description |
+|-------------|---------|-------------|
+| 401 | Invalid API key | Missing or incorrect X-API-Key header |
+| 400 | Invalid JSON | Malformed request body |
+| 404 | Backend not found | Backend address doesn't exist |
+| 404 | Endpoint not found | Invalid API path |
+| 409 | Backend already exists | Trying to add duplicate backend |
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Zero-Downtime Deployments">
+    ```bash
+    # 1. Drain old backend
+    curl -X POST -H "X-API-Key: $KEY" \
+      -d '{"address": "old-server:8080"}' \
+      http://lb:8080/admin/backends/drain
+
+    # 2. Wait for connections to drain
+    sleep 30
+
+    # 3. Add new backend
+    curl -X POST -H "X-API-Key: $KEY" \
+      -d '{"address": "new-server:8080"}' \
+      http://lb:8080/admin/backends
+
+    # 4. Remove old backend
+    curl -X DELETE -H "X-API-Key: $KEY" \
+      -d '{"address": "old-server:8080"}' \
+      http://lb:8080/admin/backends
+    ```
+  </Accordion>
+
+  <Accordion title="Auto-Scaling Integration">
+    ```python
+    # AWS Auto Scaling lifecycle hook
+    def handle_scale_out(instance_ip):
+        requests.post(
+            'http://lb:8080/admin/backends',
+            headers={'X-API-Key': API_KEY},
+            json={'address': f'{instance_ip}:8080'}
+        )
+
+    def handle_scale_in(instance_ip):
+        # Drain first
+        requests.post(
+            'http://lb:8080/admin/backends/drain',
+            headers={'X-API-Key': API_KEY},
+            json={'address': f'{instance_ip}:8080'}
+        )
+        time.sleep(30)  # Wait for drain
+        requests.delete(
+            'http://lb:8080/admin/backends',
+            headers={'X-API-Key': API_KEY},
+            json={'address': f'{instance_ip}:8080'}
+        )
+    ```
+  </Accordion>
+
+  <Accordion title="Canary Deployments">
+    ```bash
+    # Add canary with low weight
+    curl -X POST -H "X-API-Key: $KEY" \
+      -d '{"address": "canary:8080", "weight": 10}' \
+      http://lb:8080/admin/backends
+
+    # Gradually increase weight
+    for weight in 25 50 75 100; do
+      curl -X PUT -H "X-API-Key: $KEY" \
+        -d "{\"address\": \"canary:8080\", \"weight\": $weight}" \
+        http://lb:8080/admin/backends/weight
+      sleep 300  # 5 minutes between increases
+    done
+    ```
+  </Accordion>
+
+  <Accordion title="Maintenance Mode">
+    ```bash
+    # Drain all backends except one
+    for backend in backend1:8080 backend2:8080; do
+      curl -X POST -H "X-API-Key: $KEY" \
+        -d "{\"address\": \"$backend\"}" \
+        http://lb:8080/admin/backends/drain
+    done
+
+    # Perform maintenance...
+
+    # Undrain when done
+    for backend in backend1:8080 backend2:8080; do
+      curl -X POST -H "X-API-Key: $KEY" \
+        -d "{\"address\": \"$backend\"}" \
+        http://lb:8080/admin/backends/undrain
+    done
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+Never expose the Admin API to the public internet without authentication.
+</Warning>
+
+1. **Always set an API key** in production
+2. **Use HTTPS** for Admin API calls
+3. **Restrict network access** to Admin API port
+4. **Rotate API keys** regularly
+5. **Audit API calls** via access logs
+
+```yaml
+# Production admin configuration
+admin:
+  enabled: true
+  api_key: "${ADMIN_API_KEY}"  # From environment variable
+
+# Restrict to internal network via firewall
+# iptables -A INPUT -p tcp --dport 8080 -s 10.0.0.0/8 -j ACCEPT
+# iptables -A INPUT -p tcp --dport 8080 -j DROP
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Health Endpoint" icon="heart-pulse" href="/api-reference/health">
+    Monitor load balancer health
+  </Card>
+  <Card title="Metrics Endpoint" icon="chart-line" href="/api-reference/metrics">
+    Get performance metrics
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration/overview">
+    Static configuration options
+  </Card>
+  <Card title="Graceful Shutdown" icon="power-off" href="/advanced/performance-tuning">
+    Connection draining on shutdown
+  </Card>
+</CardGroup>
