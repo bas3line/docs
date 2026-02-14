@@ -23,60 +23,81 @@ Set up comprehensive monitoring for UltraBalancer using Prometheus for metrics c
   </Card>
 </CardGroup>
 
-## Prometheus Setup
+## Quick Setup
 
-### Installation
+The easiest way to set up monitoring is using the built-in dashboard command:
+
+```bash
+# Start monitoring stack (interactive setup)
+ultrabalancer dashboard --start
+
+# Or with flags for non-interactive setup
+ultrabalancer dashboard --start \
+  --ultrabalancer-host localhost \
+  --ultrabalancer-port 8080 \
+  --prometheus-port 9090 \
+  --grafana-port 3000
+```
+
+This automatically:
+- Creates Docker Compose configuration
+- Generates Prometheus config
+- Provisions Grafana dashboard
+- Starts all services
+
+**Access:**
+- Grafana: http://localhost:3000 (admin + auto-generated password)
+- Prometheus: http://localhost:9090
+
+## Manual Setup
+
+If you prefer manual setup or need custom configuration:
 
 <Tabs>
-  <Tab title="Ubuntu/Debian">
-    ```bash
-    # Download Prometheus
-    wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
-    tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
-    sudo mv prometheus-2.45.0.linux-amd64 /opt/prometheus
-    sudo ln -s /opt/prometheus/prometheus /usr/local/bin/
-
-    # Create user
-    sudo useradd -r -s /bin/false prometheus
-
-    # Create directories
-    sudo mkdir -p /etc/prometheus /var/lib/prometheus
-    sudo chown prometheus:prometheus /var/lib/prometheus
-    ```
-  </Tab>
-
   <Tab title="Docker">
     ```yaml docker-compose.yml
     version: '3.8'
 
     services:
       prometheus:
-        image: prom/prometheus:latest
-        container_name: prometheus
+        image: prom/prometheus:v2.48.0
+        container_name: ultrabalancer-dashboard-prometheus
         ports:
           - "9090:9090"
         volumes:
-          - ./prometheus.yml:/etc/prometheus/prometheus.yml
-          - prometheus-data:/prometheus
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+          - prometheus_data:/prometheus
         command:
           - '--config.file=/etc/prometheus/prometheus.yml'
           - '--storage.tsdb.path=/prometheus'
+        networks:
+          - ultrabalancer-net
         restart: unless-stopped
 
       grafana:
-        image: grafana/grafana:latest
-        container_name: grafana
+        image: grafana/grafana:10.2.0
+        container_name: ultrabalancer-dashboard-grafana
         ports:
           - "3000:3000"
-        volumes:
-          - grafana-data:/var/lib/grafana
         environment:
+          - GF_SECURITY_ADMIN_USER=admin
           - GF_SECURITY_ADMIN_PASSWORD=admin
+          - GF_USERS_ALLOW_SIGN_UP=false
+        volumes:
+          - grafana_data:/var/lib/grafana
+        networks:
+          - ultrabalancer-net
         restart: unless-stopped
+        depends_on:
+          - prometheus
+
+    networks:
+      ultrabalancer-net:
+        driver: bridge
 
     volumes:
-      prometheus-data:
-      grafana-data:
+      prometheus_data:
+      grafana_data:
     ```
   </Tab>
 
@@ -100,117 +121,24 @@ Set up comprehensive monitoring for UltraBalancer using Prometheus for metrics c
   </Tab>
 </Tabs>
 
-### Configuration
+### Prometheus Configuration
 
 ```yaml prometheus.yml
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 5s
+  evaluation_interval: 5s
 
 scrape_configs:
-  # UltraBalancer
   - job_name: 'ultrabalancer'
     static_configs:
       - targets: ['localhost:8080']
-    metrics_path: '/prometheus'
-    scrape_interval: 5s
-
-  # Node Exporter (system metrics)
-  - job_name: 'node'
-    static_configs:
-      - targets: ['localhost:9100']
+    metrics_path: /prometheus
+    scheme: http
 ```
 
-### Systemd Service
+### Grafana Dashboard
 
-```ini /etc/systemd/system/prometheus.service
-[Unit]
-Description=Prometheus
-After=network.target
-
-[Service]
-User=prometheus
-Group=prometheus
-Type=simple
-ExecStart=/usr/local/bin/prometheus \
-  --config.file=/etc/prometheus/prometheus.yml \
-  --storage.tsdb.path=/var/lib/prometheus \
-  --web.console.templates=/opt/prometheus/consoles \
-  --web.console.libraries=/opt/prometheus/console_libraries
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## Grafana Setup
-
-### Installation
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install -y software-properties-common
-sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
-wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-sudo apt-get update
-sudo apt-get install grafana
-
-# Start service
-sudo systemctl enable grafana-server
-sudo systemctl start grafana-server
-```
-
-### Dashboard Configuration
-
-```json ultrabalancer-dashboard.json
-{
-  "dashboard": {
-    "title": "UltraBalancer Monitoring",
-    "panels": [
-      {
-        "title": "Requests Per Second",
-        "targets": [
-          {
-            "expr": "rate(ultrabalancer_requests_total[5m])"
-          }
-        ]
-      },
-      {
-        "title": "Response Time Percentiles",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.50, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
-            "legendFormat": "p50"
-          },
-          {
-            "expr": "histogram_quantile(0.95, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
-            "legendFormat": "p95"
-          },
-          {
-            "expr": "histogram_quantile(0.99, rate(ultrabalancer_response_time_seconds_bucket[5m]))",
-            "legendFormat": "p99"
-          }
-        ]
-      },
-      {
-        "title": "Error Rate",
-        "targets": [
-          {
-            "expr": "100 * rate(ultrabalancer_requests_failed[5m]) / rate(ultrabalancer_requests_total[5m])"
-          }
-        ]
-      },
-      {
-        "title": "Backend Health",
-        "targets": [
-          {
-            "expr": "ultrabalancer_backend_healthy"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+UltraBalancer includes a pre-built Grafana dashboard at `examples/grafana-dashboard.json`. Import this into Grafana for instant visualization of:
 
 ## Alerting
 
@@ -398,6 +326,62 @@ volumes:
   prometheus-data:
   grafana-data:
   alertmanager-data:
+```
+
+## Dashboard Command Reference
+
+### Managing the Dashboard
+
+```bash
+# Start dashboard (creates dashboard/ directory)
+ultrabalancer dashboard --start
+
+# Check running services
+ultrabalancer dashboard --status
+
+# View logs (Ctrl+C to exit)
+ultrabalancer dashboard --logs
+
+# Restart with new settings
+ultrabalancer dashboard --restart
+
+# Stop and remove all data
+ultrabalancer dashboard --reset
+
+# Edit configuration
+ultrabalancer dashboard --edit
+```
+
+### Command-Line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--ultrabalancer-host` | UltraBalancer metrics endpoint host | localhost |
+| `--ultrabalancer-port` | UltraBalancer metrics port | 8080 |
+| `--prometheus-port` | Prometheus listening port | 9090 |
+| `--grafana-port` | Grafana listening port | 3000 |
+| `--config <file>` | Load config from file | - |
+| `--start` | Start the dashboard | - |
+| `--stop` | Stop the dashboard | - |
+| `--restart` | Restart the dashboard | - |
+| `--reset` | Stop and remove all data | - |
+| `--status` | Show running services | - |
+| `--logs` | Stream logs | - |
+| `--edit` | Interactive config edit | - |
+
+### Generated Files
+
+```
+dashboard/
+├── docker-compose.yml       # Docker Compose configuration
+├── prometheus.yml           # Prometheus scrape config
+├── .env                     # Environment variables
+├── start-dashboard.sh       # Manual control script
+└── provisioning/
+    ├── dashboards/
+    │   └── ultrabalancer-overview.json  # Pre-built dashboard
+    └── datasources/
+        └── prometheus.yml   # Grafana datasource config
 ```
 
 ## Key Metrics to Monitor

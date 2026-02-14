@@ -284,7 +284,7 @@ ultrabalancer info
 
 **Output:**
 ```
-UltraBalancer v2.0.0
+UltraBalancer v3.0.0
 Production-grade load balancer written in Rust
 
 Supported Algorithms:
@@ -293,6 +293,8 @@ Supported Algorithms:
   • ip-hash          - Consistent hashing based on client IP
   • random           - Random distribution
   • weighted         - Weight-based round robin
+  • power-of-two     - Two random choices, pick least loaded
+  • fastest-response - Fastest recent response time
 
 Features:
   • Automatic health checking
@@ -301,7 +303,91 @@ Features:
   • HTTP/1.1 proxying
   • Connection pooling
   • Circuit breaker pattern
+  • Grafana/Prometheus dashboard (see 'ultrabalancer dashboard --help')
 ```
+
+### dashboard
+
+Deploy a complete monitoring stack with Grafana and Prometheus.
+
+**Syntax:**
+```bash
+ultrabalancer dashboard [OPTIONS]
+```
+
+**Options:**
+- `--start` - Start the monitoring dashboard (interactive setup)
+- `--stop` - Stop the monitoring dashboard
+- `--restart` - Restart the monitoring dashboard
+- `--reset` - Stop dashboard and remove all data
+- `--status` - Show dashboard status
+- `--logs` - Show dashboard logs (Ctrl+C to exit)
+- `--edit` - Edit dashboard configuration
+- `--config <FILE>` - Load configuration from file
+- `--ultrabalancer-host <HOST>` - UltraBalancer metrics host
+- `--ultrabalancer-port <PORT>` - UltraBalancer metrics port
+- `--prometheus-port <PORT>` - Prometheus port (default: 9090)
+- `--grafana-port <PORT>` - Grafana port (default: 3000)
+
+**Examples:**
+
+<CodeGroup>
+
+```bash Interactive Setup
+ultrabalancer dashboard --start
+```
+
+```bash Quick Start with Defaults
+ultrabalancer dashboard --start \
+  --ultrabalancer-host localhost \
+  --ultrabalancer-port 8080 \
+  --prometheus-port 9090 \
+  --grafana-port 3000
+```
+
+```bash Check Status
+ultrabalancer dashboard --status
+```
+
+```bash Stop Dashboard
+ultrabalancer dashboard --stop
+```
+
+```bash View Logs
+ultrabalancer dashboard --logs
+```
+
+```bash Reset Dashboard
+ultrabalancer dashboard --reset
+```
+
+</CodeGroup>
+
+**What it does:**
+1. Creates `dashboard/` directory with all necessary files
+2. Generates `docker-compose.yml` for Prometheus and Grafana
+3. Creates pre-configured Prometheus scrape configuration
+4. Provisions Grafana dashboard with UltraBalancer metrics
+5. Auto-configures Prometheus as Grafana datasource
+6. Starts Docker containers for monitoring stack
+
+**Generated files:**
+```
+dashboard/
+├── docker-compose.yml
+├── prometheus.yml
+├── .env
+├── start-dashboard.sh
+└── provisioning/
+    ├── dashboards/
+    │   └── ultrabalancer-overview.json
+    └── datasources/
+        └── prometheus.yml
+```
+
+**After starting:**
+- Grafana: http://localhost:3000 (admin + auto-generated password)
+- Prometheus: http://localhost:9090
 
 ## Usage Examples
 
