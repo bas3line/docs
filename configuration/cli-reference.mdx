@@ -1,623 +1,120 @@
 ---
 title: 'CLI Reference'
-description: 'Complete command-line interface reference with all flags, options, and commands'
+description: 'Simple command-line reference for UltraBalancer'
 icon: 'terminal'
 ---
 
-## Synopsis
+## Quick Start
 
 ```bash
-ultrabalancer [OPTIONS] [COMMAND]
+# Basic usage - 2 backends, round-robin
+ultrabalancer -b server1:8080 -b server2:8080
+
+# Custom port
+ultrabalancer -p 80 -b backend1:8080 -b backend2:8080
+
+# With weights
+ultrabalancer -b server1:8080:200 -b server2:8080:100
 ```
-
-## Global Options
-
-### Listener Options
-
-<ParamField path="--host, -h" type="string" default="0.0.0.0">
-  IP address to bind to
-
-  ```bash
-  ultrabalancer --host 0.0.0.0 -b server1:8080
-  ultrabalancer --host 127.0.0.1 -b server1:8080  # Localhost only
-  ```
-</ParamField>
-
-<ParamField path="--port, -p" type="integer" default="8080">
-  Port number to listen on (1-65535)
-
-  ```bash
-  ultrabalancer --port 80 -b server1:8080
-  ultrabalancer -p 443 -b server1:8080
-  ```
-</ParamField>
-
-### Backend Options
-
-<ParamField path="--backend, -b" type="string" required>
-  Backend server (format: `host:port` or `host:port:weight`)
-
-  Can be specified multiple times for multiple backends.
-
-  ```bash
-  # Simple format
-  ultrabalancer -b server1:8080 -b server2:8080
-
-  # With weights
-  ultrabalancer -b server1:8080:150 -b server2:8080:100
-
-  # Mixed
-  ultrabalancer -b 192.168.1.10:8080:200 -b 192.168.1.11:8080
-  ```
-</ParamField>
-
-### Algorithm Options
-
-<ParamField path="--algorithm, -a" type="string" default="round-robin">
-  Load balancing algorithm
-
-  **Available algorithms:**
-  - `round-robin` - Distribute evenly across backends
-  - `least-connections` - Route to backend with fewest connections
-  - `ip-hash` - Consistent hashing based on client IP
-  - `random` - Random backend selection
-  - `weighted` - Weighted round-robin distribution
-
-  ```bash
-  ultrabalancer -a round-robin -b s1:8080 -b s2:8080
-  ultrabalancer -a least-connections -b s1:8080 -b s2:8080
-  ultrabalancer -a ip-hash -b s1:8080 -b s2:8080
-  ```
-</ParamField>
-
-<ParamField path="--weight, -w" type="integer" default="100">
-  Default weight for all backends (used with weighted algorithm)
-
-  ```bash
-  ultrabalancer -a weighted -w 100 -b s1:8080 -b s2:8080
-  ```
-</ParamField>
-
-### Health Check Options
-
-<ParamField path="--no-health-check" type="flag">
-  Disable health checking
-
-  ```bash
-  ultrabalancer --no-health-check -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--health-check-interval" type="integer" default="5000">
-  Health check interval in milliseconds
-
-  ```bash
-  ultrabalancer --health-check-interval 3000 -b server1:8080
-  ```
-</ParamField>
-
-<ParamField path="--health-check-fails" type="integer" default="3">
-  Number of failures before marking backend unhealthy
-
-  ```bash
-  ultrabalancer --health-check-fails 5 -b server1:8080
-  ```
-</ParamField>
-
-### Configuration File
-
-<ParamField path="--config, -c" type="string">
-  Path to YAML or TOML configuration file
-
-  ```bash
-  ultrabalancer --config config.yaml
-  ultrabalancer -c /etc/ultrabalancer/config.toml
-  ```
-</ParamField>
-
-<Note>
-**Advanced Options:** Additional configuration options like logging, timeouts, max connections, and worker threads are available via config file only. See [File Configuration](/configuration/file-config) for details.
-</Note>
-
-### Miscellaneous
-
-<ParamField path="--version, -v" type="flag">
-  Print version information
-
-  ```bash
-  ultrabalancer --version
-  # Output: ultrabalancer 2.0.0
-  ```
-</ParamField>
-
-<ParamField path="--help" type="flag">
-  Print help information
-
-  ```bash
-  ultrabalancer --help
-  ```
-</ParamField>
 
 ## Commands
 
 ### start
-
-Start the load balancer with specified configuration.
-
-**Syntax:**
+Start the load balancer.
 ```bash
-ultrabalancer start <ALGORITHM> <BACKENDS...> [OPTIONS]
+ultrabalancer start round-robin server1:8080 server2:8080
 ```
 
-**Arguments:**
-- `<ALGORITHM>` - Load balancing algorithm
-- `<BACKENDS...>` - Space-separated list of backend servers
-
-**Options:**
-- `--port, -p` - Listen port (default: 8080)
-- `--weight` - Default backend weight (default: 100)
-- `--no-health-check` - Disable health checks
-
-**Examples:**
-
-<CodeGroup>
-
-```bash Round Robin
-ultrabalancer start round-robin server1:8080 server2:8080 --port 80
+### dashboard
+Deploy Grafana/Prometheus monitoring.
+```bash
+ultrabalancer dashboard --start    # Interactive setup
+ultrabalancer dashboard --status   # Check status
+ultrabalancer dashboard --stop     # Stop dashboard
 ```
-
-```bash Least Connections
-ultrabalancer start least-connections \
-  backend1.internal:8080 \
-  backend2.internal:8080 \
-  backend3.internal:8080 \
-  --port 80
-```
-
-```bash Weighted
-ultrabalancer start weighted \
-  server1:8080 \
-  server2:8080 \
-  --weight 150 \
-  --port 80
-```
-
-```bash IP Hash
-ultrabalancer start ip-hash \
-  10.0.1.10:8080 \
-  10.0.1.11:8080 \
-  10.0.1.12:8080 \
-  --port 80 \
-  --no-health-check
-```
-
-</CodeGroup>
 
 ### validate
-
-Validate a configuration file without starting the load balancer.
-
-**Syntax:**
+Check config file syntax.
 ```bash
-ultrabalancer validate --config <FILE>
+ultrabalancer validate -f config.yaml
 ```
-
-**Options:**
-- `--config, -c` - Path to configuration file (required)
-
-**Examples:**
-
-<CodeGroup>
-
-```bash Validate YAML
-ultrabalancer validate --config config.yaml
-```
-
-```bash Validate TOML
-ultrabalancer validate -c /etc/ultrabalancer/config.toml
-```
-
-```bash Output - Valid
-✓ Configuration is valid
-
-Summary:
-  Listen: 0.0.0.0:8080
-  Algorithm: least-connections
-  Backends: 3
-  Health Checks: enabled
-  Workers: 8 (auto-detected)
-```
-
-```bash Output - Invalid
-✗ Configuration validation failed:
-
-Error: Invalid backend port
-  → backends[0].port: must be between 1 and 65535
-  File: config.yaml:8
-
-Error: Invalid health check interval
-  → health_check.interval_ms: must be at least 1000ms
-  File: config.yaml:15
-```
-
-</CodeGroup>
 
 ### example
-
-Print an example configuration file.
-
-**Syntax:**
+Print example config.
 ```bash
-ultrabalancer example [--format <FORMAT>]
-```
-
-**Options:**
-- `--format` - Output format: `yaml` or `toml` (default: yaml)
-
-**Examples:**
-
-<CodeGroup>
-
-```bash YAML Example
 ultrabalancer example
 ```
 
-```bash TOML Example
-ultrabalancer example --format toml
-```
-
-```bash Save to File
-ultrabalancer example > config.yaml
-ultrabalancer example --format toml > config.toml
-```
-
-</CodeGroup>
-
 ### info
-
-Display information about available algorithms and features.
-
-**Syntax:**
+Show version and algorithms.
 ```bash
 ultrabalancer info
 ```
 
-**Output:**
-```
-UltraBalancer v3.0.0
-Production-grade load balancer written in Rust
+## Options
 
-Supported Algorithms:
-  • round-robin       - Distribute requests evenly
-  • least-connections - Route to server with fewest connections
-  • ip-hash          - Consistent hashing based on client IP
-  • random           - Random distribution
-  • weighted         - Weight-based round robin
-  • power-of-two     - Two random choices, pick least loaded
-  • fastest-response - Fastest recent response time
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-p, --port` | Listen port | 8080 |
+| `-b, --backend` | Backend server (host:port) | Required |
+| `-a, --algorithm` | Load balancing algorithm | round-robin |
+| `-w, --weight` | Default backend weight | 100 |
+| `-c, --config` | Config file path | - |
+| `--host` | Bind address | 0.0.0.0 |
 
-Features:
-  • Automatic health checking
-  • Real-time metrics (/metrics, /prometheus endpoints)
-  • Zero-downtime failover
-  • HTTP/1.1 proxying
-  • Connection pooling
-  • Circuit breaker pattern
-  • Grafana/Prometheus dashboard (see 'ultrabalancer dashboard --help')
-```
+## Algorithms
 
-### dashboard
+| Algorithm | Description |
+|-----------|-------------|
+| `round-robin` | Even distribution (default) |
+| `least-connections` | Fewest active connections |
+| `ip-hash` | Same client → same server |
+| `random` | Random backend |
+| `weighted` | Weight-based distribution |
+| `power-of-two` | Pick 2, use least loaded |
+| `fastest-response` | Fastest recent response |
 
-Deploy a complete monitoring stack with Grafana and Prometheus.
+## Admin API
 
-**Syntax:**
-```bash
-ultrabalancer dashboard [OPTIONS]
-```
-
-**Options:**
-- `--start` - Start the monitoring dashboard (interactive setup)
-- `--stop` - Stop the monitoring dashboard
-- `--restart` - Restart the monitoring dashboard
-- `--reset` - Stop dashboard and remove all data
-- `--status` - Show dashboard status
-- `--logs` - Show dashboard logs (Ctrl+C to exit)
-- `--edit` - Edit dashboard configuration
-- `--config <FILE>` - Load configuration from file
-- `--ultrabalancer-host <HOST>` - UltraBalancer metrics host
-- `--ultrabalancer-port <PORT>` - UltraBalancer metrics port
-- `--prometheus-port <PORT>` - Prometheus port (default: 9090)
-- `--grafana-port <PORT>` - Grafana port (default: 3000)
-
-**Examples:**
-
-<CodeGroup>
-
-```bash Interactive Setup
-ultrabalancer dashboard --start
-```
-
-```bash Quick Start with Defaults
-ultrabalancer dashboard --start \
-  --ultrabalancer-host localhost \
-  --ultrabalancer-port 8080 \
-  --prometheus-port 9090 \
-  --grafana-port 3000
-```
-
-```bash Check Status
-ultrabalancer dashboard --status
-```
-
-```bash Stop Dashboard
-ultrabalancer dashboard --stop
-```
-
-```bash View Logs
-ultrabalancer dashboard --logs
-```
-
-```bash Reset Dashboard
-ultrabalancer dashboard --reset
-```
-
-</CodeGroup>
-
-**What it does:**
-1. Creates `dashboard/` directory with all necessary files
-2. Generates `docker-compose.yml` for Prometheus and Grafana
-3. Creates pre-configured Prometheus scrape configuration
-4. Provisions Grafana dashboard with UltraBalancer metrics
-5. Auto-configures Prometheus as Grafana datasource
-6. Starts Docker containers for monitoring stack
-
-**Generated files:**
-```
-dashboard/
-├── docker-compose.yml
-├── prometheus.yml
-├── .env
-├── start-dashboard.sh
-└── provisioning/
-    ├── dashboards/
-    │   └── ultrabalancer-overview.json
-    └── datasources/
-        └── prometheus.yml
-```
-
-**After starting:**
-- Grafana: http://localhost:3000 (admin + auto-generated password)
-- Prometheus: http://localhost:9090
-
-## Usage Examples
-
-### Basic Usage
-
-<CodeGroup>
-
-```bash Simple Setup
-# Start with two backends, round-robin algorithm
-ultrabalancer -b server1:8080 -b server2:8080
-```
-
-```bash Custom Port
-# Listen on port 80
-ultrabalancer -p 80 -b server1:8080 -b server2:8080
-```
-
-```bash Different Algorithm
-# Use least-connections algorithm
-ultrabalancer -a least-connections -b s1:8080 -b s2:8080
-```
-
-```bash With Weights
-# Weighted distribution
-ultrabalancer -a weighted \
-  -b server1:8080:200 \
-  -b server2:8080:100 \
-  -b server3:8080:50
-```
-
-</CodeGroup>
-
-### Advanced Usage
-
-<CodeGroup>
-
-```bash Production Setup
-ultrabalancer \
-  --host 0.0.0.0 \
-  --port 80 \
-  --algorithm least-connections \
-  --backend backend1.prod.internal:8080:150 \
-  --backend backend2.prod.internal:8080:150 \
-  --backend backend3.prod.internal:8080:100 \
-  --health-check-interval 3000 \
-  --health-check-timeout 1500 \
-  --health-check-fails 3 \
-  --health-check-path /health \
-  --max-connections 50000 \
-  --workers auto \
-  --log-level info \
-  --log-format json
-```
-
-```bash Config File
-# Use configuration file (recommended)
-ultrabalancer --config /etc/ultrabalancer/config.yaml
-```
-
-```bash Override Config
-# Override config file settings with CLI args
-ultrabalancer -c config.yaml --port 9090 --log-level debug
-```
-
-```bash Development Mode
-# Development setup with debug logging
-ultrabalancer \
-  --host 127.0.0.1 \
-  --port 8080 \
-  --algorithm round-robin \
-  --backend localhost:3001 \
-  --backend localhost:3002 \
-  --backend localhost:3003 \
-  --health-check-interval 10000 \
-  --log-level debug
-```
-
-</CodeGroup>
-
-### Docker Usage
-
-<CodeGroup>
-
-```bash Docker Run
-docker run -d \
-  --name ultrabalancer \
-  -p 80:8080 \
-  ultrabalancer/ultrabalancer:latest \
-  -b backend1:8080 \
-  -b backend2:8080 \
-  -a least-connections
-```
-
-```bash Docker Compose
-docker-compose run ultrabalancer \
-  start round-robin \
-  backend1:8080 backend2:8080 \
-  --port 8080
-```
-
-```bash With Config File
-docker run -d \
-  --name ultrabalancer \
-  -p 80:8080 \
-  -v $(pwd)/config.yaml:/etc/ultrabalancer/config.yaml \
-  ultrabalancer/ultrabalancer:latest \
-  --config /etc/ultrabalancer/config.yaml
-```
-
-</CodeGroup>
-
-### Kubernetes Usage
+Secure API for managing backends (requires API key).
 
 ```bash
-# Run as a Kubernetes Job
-kubectl run ultrabalancer \
-  --image=ultrabalancer/ultrabalancer:latest \
-  --port=8080 \
-  -- \
-  -b backend-service:8080 \
-  -a least-connections \
-  --log-format json
+# List backends
+curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/admin/backends
+
+# Add backend
+curl -X POST -H "X-API-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"address":"10.0.0.5:8080","weight":100}' \
+  http://localhost:8080/admin/backends
+
+# Remove backend
+curl -X DELETE -H "X-API-Key: YOUR_KEY" \
+  -d '{"address":"10.0.0.5:8080"}' \
+  http://localhost:8080/admin/backends
+
+# Update weight
+curl -X PUT -H "X-API-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"address":"10.0.0.5:8080","weight":150}' \
+  http://localhost:8080/admin/backends/weight
 ```
 
+### Admin Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/admin/backends` | List all backends |
+| POST | `/admin/backends` | Add backend |
+| DELETE | `/admin/backends` | Remove backend |
+| PUT | `/admin/backends/weight` | Update weight |
+| POST | `/admin/backends/drain` | Start draining |
+| POST | `/admin/backends/undrain` | Stop draining |
+| GET | `/admin/health` | API health check |
 
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Configuration error |
-| 2 | Runtime error |
-| 3 | Invalid arguments |
-| 130 | Interrupted (SIGINT/Ctrl+C) |
-
-## Signal Handling
-
-| Signal | Behavior |
-|--------|----------|
-| `SIGINT` (Ctrl+C) | Graceful shutdown |
-| `SIGTERM` | Graceful shutdown |
-
-**Example:**
-
-```bash
-# Graceful shutdown
-kill -TERM $(pidof ultrabalancer)
-
-# Or use Ctrl+C
-```
-
-## Tips & Tricks
-
-<Tip>
-**Pro Tips**
-
-1. **Use config files in production** - Easier to manage than long CLI commands
-2. **Validate config before deployment** - Use `ultrabalancer validate -f config.yaml`
-3. **Start simple, then optimize** - Begin with round-robin, monitor metrics, then adjust
-4. **Use systemd for process management** - See [Systemd deployment guide](/deployment/systemd)
-</Tip>
-
-<Warning>
-**Common Mistakes**
-
-1. **Forgetting `-b` flag** - At least one backend is required
-2. **Invalid algorithm names** - Use exact names from `info` command
-3. **Port conflicts** - Ensure port is not already in use
-4. **Health check too aggressive** - Can overload backends
-5. **Missing config file** - Check path with `--config`
-</Warning>
-
-## Troubleshooting
-
-<Accordion title="Command not found">
-  Ensure UltraBalancer is installed and in your PATH:
-
-  ```bash
-  # Check if installed
-  which ultrabalancer
-
-  # Add to PATH if needed
-  export PATH=$PATH:/usr/local/bin
-
-  # Or use full path
-  /usr/local/bin/ultrabalancer --help
-  ```
-</Accordion>
-
-<Accordion title="Permission denied on port 80/443">
-  Ports below 1024 require root privileges:
-
-  ```bash
-  # Run with sudo
-  sudo ultrabalancer -p 80 -b server1:8080
-
-  # Or use setcap (Linux)
-  sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/ultrabalancer
-  ultrabalancer -p 80 -b server1:8080
-  ```
-</Accordion>
-
-<Accordion title="Config file not found">
-  Ensure the config file exists and path is correct:
-
-  ```bash
-  # Check if file exists
-  ls -la config.yaml
-
-  # Use absolute path
-  ultrabalancer -c /etc/ultrabalancer/config.yaml
-
-  # Or relative path from current directory
-  ultrabalancer -c ./config.yaml
-  ```
-</Accordion>
-
-## Related Topics
-
-<CardGroup cols={2}>
-  <Card title="Configuration Overview" icon="sliders" href="/configuration/overview">
-    Learn about all configuration methods
-  </Card>
-  <Card title="File Config" icon="file-code" href="/configuration/file-config">
-    YAML/TOML configuration reference
-  </Card>
-  <Card title="Examples" icon="list-check" href="/configuration/examples">
-    Real-world configuration examples
-  </Card>
-  <Card title="Deployment" icon="rocket" href="/deployment/linux-server">
-    Deploy UltraBalancer in production
-  </Card>
-</CardGroup>
+| 1 | Error |
