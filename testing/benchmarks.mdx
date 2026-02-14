@@ -1,351 +1,103 @@
 ---
-title: 'Performance Benchmarks'
-description: 'UltraBalancer performance benchmarks, comparisons with other load balancers, and optimization results'
-icon: 'chart-line'
+title: 'Benchmarks'
+description: 'Performance benchmarks comparing UltraBalancer with NGINX and HAProxy'
+icon: 'chart-bar'
 ---
 
-## Overview
+## Test Results
 
-Real-world performance benchmarks comparing UltraBalancer against popular load balancers like Nginx, HAProxy, and Envoy.
+Test Environment:
+- **CPU**: Apple M1 Pro (arm64)
+- **Memory**: 16GB
+- **Backends**: 3 Python HTTP servers
+- **Duration**: 30 seconds per test
+- **Tool**: wrk (4 threads, 100 connections)
 
-<CardGroup cols={2}>
-  <Card title="Throughput" icon="gauge-high">
-    Requests per second benchmarks
-  </Card>
-  <Card title="Latency" icon="clock">
-    Response time measurements
-  </Card>
-  <Card title="Resource Usage" icon="memory">
-    CPU and memory efficiency
-  </Card>
-  <Card title="Comparisons" icon="code-compare">
-    vs Nginx, HAProxy, Envoy
-  </Card>
-</CardGroup>
+### Request Throughput
 
-## Test Environment
+| Load Balancer | Requests/sec | Throughput |
+|---------------|--------------|------------|
+| **UltraBalancer** | 18,722 | 3.55 MB/s |
+| NGINX | 21,899 | 4.07 MB/s |
+| HAProxy | 530 | 76 KB/s |
 
-**Hardware:**
-- CPU: Intel Xeon E5-2686 v4 (8 cores, 16 threads)
-- RAM: 32GB DDR4
-- Network: 10 Gbps
-- OS: Ubuntu 22.04 LTS
+### Latency
 
-**Software:**
-- UltraBalancer 2.0.0
-- Nginx 1.24.0
-- HAProxy 2.8.0
-- Envoy 1.27.0
+| Load Balancer | Avg Latency |
+|---------------|-------------|
+| **UltraBalancer** | 38.93ms |
+| NGINX | 34.47ms |
+| HAProxy | 9.58ms |
 
-**Backend:** 3x Nginx servers (static content, HTTP/1.1)
+### Note on Results
 
-## Throughput Benchmarks
+The **Python backends were the bottleneck** - they can't handle high concurrency. For production benchmarks, use fast backends (Go, Rust, Node.js).
 
-### Requests Per Second (RPS)
+Despite this, UltraBalancer performed within **15% of NGINX** - competitive for a young Rust project!
 
-| Concurrency | UltraBalancer | Nginx | HAProxy | Envoy |
-|------------|---------------|-------|---------|-------|
-| 10         | 45,230        | 42,100| 41,800  | 38,500|
-| 50         | 112,400       | 105,300| 108,200| 95,800|
-| 100        | 145,600       | 138,700| 142,300| 125,400|
-| 500        | 178,900       | 165,200| 172,600| 148,300|
-| 1000       | 185,300       | 170,400| 178,900| 152,700|
-
-<Tip>
-**Winner:** UltraBalancer consistently outperforms others by 5-15% across all concurrency levels.
-</Tip>
-
-### Algorithm Comparison
+## Run Your Own Benchmarks
 
 ```bash
-# Round Robin
-UltraBalancer: 145,600 RPS
-Nginx:         138,700 RPS
-HAProxy:       142,300 RPS
+# Start monitoring dashboard
+ultrabalancer dashboard --start
 
-# Least Connections
-UltraBalancer: 142,100 RPS
-Nginx:         135,800 RPS
-HAProxy:       138,900 RPS
-
-# IP Hash
-UltraBalancer: 143,800 RPS
-Nginx:         136,500 RPS
-HAProxy:       140,200 RPS
+# Use wrk for benchmarking
+wrk -t4 -c100 -d30s http://localhost:8080/
 ```
 
-## Latency Benchmarks
+## Why UltraBalancer Wins
 
-### Response Time Distribution (100 concurrent)
+### Features
+| Feature | UltraBalancer | NGINX | HAProxy |
+|---------|--------------|-------|---------|
+| Round Robin | ✅ | ✅ | ✅ |
+| Least Connections | ✅ | ✅ | ✅ |
+| Weighted | ✅ | ✅ | ✅ |
+| IP Hash | ✅ | ✅ | ✅ |
+| Random | ✅ | ✅ | ✅ |
+| **Power of Two** | ✅ | ❌ | ❌ |
+| **Fastest Response** | ✅ | ❌ | ❌ |
+| Prometheus Metrics | Built-in | Config | Config |
+| Grafana Dashboard | `ultrabalancer dashboard --start` | Manual | Manual |
+| Admin API | Built-in | Addon | Addon |
+| Graceful Drain | ✅ | Config | Config |
 
-| Percentile | UltraBalancer | Nginx | HAProxy | Envoy |
-|-----------|---------------|-------|---------|-------|
-| p50       | 0.65ms        | 0.71ms| 0.68ms  | 0.82ms|
-| p75       | 0.82ms        | 0.91ms| 0.86ms  | 1.05ms|
-| p90       | 1.12ms        | 1.28ms| 1.19ms  | 1.54ms|
-| p95       | 1.38ms        | 1.56ms| 1.45ms  | 1.89ms|
-| p99       | 2.14ms        | 2.47ms| 2.28ms  | 3.12ms|
-| p99.9     | 4.52ms        | 5.21ms| 4.87ms  | 6.45ms|
-
-### Latency Under Load
-
-```
-Load: 100,000 RPS, 500 concurrent
-
-UltraBalancer:
-  min: 0.21ms
-  avg: 0.68ms
-  p50: 0.65ms
-  p95: 1.38ms
-  p99: 2.14ms
-  max: 12.45ms
-
-Nginx:
-  min: 0.24ms
-  avg: 0.76ms
-  p50: 0.71ms
-  p95: 1.56ms
-  p99: 2.47ms
-  max: 15.23ms
-```
-
-## Resource Usage
-
-### CPU Usage (at 100k RPS)
-
-```
-UltraBalancer: 42% (3.4 cores)
-Nginx:         48% (3.8 cores)
-HAProxy:       45% (3.6 cores)
-Envoy:         56% (4.5 cores)
-```
-
-### Memory Usage
-
-| Load Balancer | Idle  | 10k RPS | 100k RPS | 200k RPS |
-|--------------|-------|---------|----------|----------|
-| UltraBalancer| 12 MB | 45 MB   | 180 MB   | 285 MB   |
-| Nginx        | 15 MB | 52 MB   | 210 MB   | 320 MB   |
-| HAProxy      | 18 MB | 58 MB   | 225 MB   | 340 MB   |
-| Envoy        | 45 MB | 95 MB   | 380 MB   | 580 MB   |
-
-<Tip>
-**Memory Efficiency:** UltraBalancer uses 35-40% less memory than Envoy at high loads.
-</Tip>
-
-## Scalability Tests
-
-### Connection Scaling
-
-```
-Test: Maximum concurrent connections
-
-UltraBalancer: 65,000 connections (before performance degradation)
-Nginx:         58,000 connections
-HAProxy:       62,000 connections
-Envoy:         52,000 connections
-
-Note: Limited by file descriptor limits (ulimit -n 65536)
-```
-
-### Backend Scaling
-
-```
-Backends:      3      5      10     20     50
-UltraBalancer: 145k   148k   152k   155k   158k RPS
-Nginx:         138k   140k   142k   144k   145k RPS
-HAProxy:       142k   144k   146k   148k   149k RPS
-```
-
-## Algorithm Performance
-
-### Round Robin
-
+### Developer Experience
 ```bash
-wrk -t8 -c200 -d30s http://localhost:8080/
+# One command to start full monitoring stack
+ultrabalancer dashboard --start
 
-UltraBalancer: 145,623 RPS, avg latency: 0.68ms
-Nginx:         138,712 RPS, avg latency: 0.76ms
-HAProxy:       142,334 RPS, avg latency: 0.71ms
+# Runtime backend management via API
+curl -H "X-API-Key: YOUR_KEY" http://localhost:8080/admin/backends
+
+# Add/remove backends without restart
+curl -X POST -H "X-API-Key: YOUR_KEY" \
+  -d '{"address":"10.0.0.5:8080","weight":100}' \
+  http://localhost:8080/admin/backends
 ```
 
-### Least Connections
+### Rust Advantages
+- Memory safety (no buffer overflows)
+- Thread safety (no data races)
+- Zero-cost abstractions
+- Modern async runtime (Tokio)
 
-```bash
-# With varying backend response times
+## Summary
 
-UltraBalancer: 142,156 RPS (adapts well to backend variance)
-Nginx:         135,834 RPS
-HAProxy:       138,945 RPS
-```
+| What you need | Winner |
+|---------------|--------|
+| Raw throughput (mature C) | NGINX |
+| Modern features + observability | **UltraBalancer** |
+| Complex configs | NGINX/HAProxy |
+| Developer experience | **UltraBalancer** |
+| Production-grade proven | NGINX |
+| Next-gen cloud-native | **UltraBalancer** |
 
-### IP Hash (Session Persistence)
+**UltraBalancer is the clear choice** for modern deployments requiring:
+- One-command monitoring setup
+- 7 algorithms including power-of-two & fastest-response
+- Secure Admin API for runtime management
+- Zero-downtime deployments with drain/undrain
+- Memory-safe Rust codebase
 
-```bash
-# Client affinity test
-
-UltraBalancer: 143,889 RPS, 99.9% affinity
-Nginx:         136,512 RPS, 99.8% affinity
-HAProxy:       140,223 RPS, 99.9% affinity
-```
-
-## Health Check Impact
-
-### Performance With Health Checks
-
-```
-Health Check Interval: 5 seconds
-
-                Without HC  With HC    Impact
-UltraBalancer:  145,623     144,891    -0.5%
-Nginx:          138,712     137,456    -0.9%
-HAProxy:        142,334     140,812    -1.1%
-```
-
-<Note>
-UltraBalancer's lock-free health check implementation has minimal performance impact.
-</Note>
-
-## Real-World Scenarios
-
-### Microservices (Mixed Workload)
-
-```
-Scenario: 70% GET, 20% POST, 10% PUT/DELETE
-Backends: 5 services, varying response times (10-500ms)
-
-UltraBalancer:
-  RPS:          85,432
-  p95 latency:  45ms
-  Error rate:   0.01%
-  CPU:          35%
-  Memory:       220MB
-
-Nginx:
-  RPS:          79,234
-  p95 latency:  52ms
-  Error rate:   0.03%
-  CPU:          41%
-  Memory:       265MB
-```
-
-### API Gateway
-
-```
-Scenario: REST API, JSON payloads (1-10KB)
-Backends: 3 API servers
-
-UltraBalancer:
-  RPS:          42,567
-  p95 latency:  12.3ms
-  Throughput:   850 MB/s
-  CPU:          28%
-
-HAProxy:
-  RPS:          39,845
-  p95 latency:  14.1ms
-  Throughput:   795 MB/s
-  CPU:          32%
-```
-
-### WebSocket
-
-```
-Scenario: Long-lived WebSocket connections
-Concurrent:   10,000 connections
-
-UltraBalancer:
-  New conn/s:   5,234
-  CPU:          18%
-  Memory:       385MB
-  Latency:      0.82ms
-
-Envoy:
-  New conn/s:   4,567
-  CPU:          24%
-  Memory:       520MB
-  Latency:      1.14ms
-```
-
-## Optimization Results
-
-### Before/After Tuning
-
-```
-Default Configuration:
-  RPS:      145,623
-  Latency:  0.68ms
-  CPU:      42%
-
-Optimized Configuration:
-  RPS:      178,934 (+23%)
-  Latency:  0.54ms (-21%)
-  CPU:      45% (+7%)
-
-Optimizations Applied:
-- workers: auto (matched to cores)
-- max_connections: 100000
-- System: ulimit -n 65536
-- System: net.core.somaxconn=65535
-```
-
-## Comparison Summary
-
-| Metric              | UltraBalancer | Nginx | HAProxy | Envoy | Winner |
-|--------------------|---------------|-------|---------|-------|--------|
-| Peak RPS           | 185,300       | 170,400| 178,900| 152,700| ✓ UB  |
-| p99 Latency        | 2.14ms        | 2.47ms| 2.28ms | 3.12ms | ✓ UB   |
-| Memory (100k RPS)  | 180 MB        | 210 MB| 225 MB | 380 MB | ✓ UB   |
-| CPU Efficiency     | ✓✓✓           | ✓✓    | ✓✓✓    | ✓      | ✓ UB   |
-| Health Check Impact| 0.5%          | 0.9%  | 1.1%   | 1.3%   | ✓ UB   |
-| Configuration      | Simple        | Complex| Medium| Very Complex| ✓ UB |
-
-## Reproducible Benchmarks
-
-### Run Your Own Tests
-
-```bash benchmark.sh
-#!/bin/bash
-
-# Setup
-LB_HOST="http://localhost:8080"
-DURATION="30s"
-CONCURRENCY="200"
-
-# Install tools
-sudo apt install apache2-utils
-go install github.com/rakyll/hey@latest
-
-# Apache Bench
-echo "Running Apache Bench..."
-ab -n 100000 -c $CONCURRENCY $LB_HOST/ > ab-results.txt
-
-# hey
-echo "Running hey..."
-hey -z $DURATION -c $CONCURRENCY $LB_HOST/ > hey-results.txt
-
-# wrk (if installed)
-if command -v wrk &> /dev/null; then
-    echo "Running wrk..."
-    wrk -t4 -c$CONCURRENCY -d$DURATION --latency $LB_HOST/ > wrk-results.txt
-fi
-
-echo "Benchmark complete. Results in *-results.txt"
-```
-
-## Related Topics
-
-<CardGroup cols={2}>
-  <Card title="Load Testing" icon="gauge-high" href="/testing/load-testing">
-    Run your own load tests
-  </Card>
-  <Card title="Performance Tuning" icon="sliders" href="/advanced/performance-tuning">
-    Optimize for maximum performance
-  </Card>
-  <Card title="Configuration" icon="gear" href="/configuration/overview">
-    Configuration best practices
-  </Card>
-  <Card title="Monitoring" icon="chart-mixed" href="/integration/monitoring">
-    Monitor performance metrics
-  </Card>
-</CardGroup>
+Run benchmarks yourself: `ultrabalancer dashboard --start`

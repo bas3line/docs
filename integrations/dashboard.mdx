@@ -1,0 +1,138 @@
+---
+title: 'Dashboard Command'
+description: 'Deploy Grafana and Prometheus monitoring with one command'
+icon: 'chart-line'
+---
+
+## Quick Start
+
+```bash
+# Start monitoring stack (interactive)
+ultrabalancer dashboard --start
+
+# Or with flags
+ultrabalancer dashboard --start \
+  --ultrabalancer-host localhost \
+  --ultrabalancer-port 8080 \
+  --prometheus-port 9090 \
+  --grafana-port 3000
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `--start` | Start monitoring stack (creates dashboard/ dir) |
+| `--stop` | Stop and remove containers |
+| `--restart` | Restart monitoring stack |
+| `--reset` | Stop and remove all data |
+| `--status` | Show running services |
+| `--logs` | Stream logs (Ctrl+C to exit) |
+| `--edit` | Edit configuration interactively |
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--ultrabalancer-host` | UltraBalancer host to monitor | localhost |
+| `--ultrabalancer-port` | UltraBalancer metrics port | 8080 |
+| `--prometheus-port` | Prometheus listen port | 9090 |
+| `--grafana-port` | Grafana listen port | 3000 |
+| `-c, --config <file>` | Load config from YAML file | - |
+
+## What Gets Created
+
+```
+dashboard/
+├── docker-compose.yml       # Docker Compose config
+├── prometheus.yml           # Prometheus scrape config
+├── .env                     # Environment variables
+├── start-dashboard.sh       # Manual control script
+└── provisioning/
+    ├── dashboards/
+    │   └── ultrabalancer-overview.json  # Pre-built dashboard
+    └── datasources/
+        └── prometheus.yml   # Grafana datasource config
+```
+
+## Access After Starting
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Grafana | http://localhost:3000 | admin + auto-generated password |
+| Prometheus | http://localhost:9090 | - |
+
+## Examples
+
+```bash
+# Interactive setup with defaults
+ultrabalancer dashboard --start
+
+# Custom ports, non-interactive
+ultrabalancer dashboard --start \
+  --prometheus-port 9091 \
+  --grafana-port 3001
+
+# Check status
+ultrabalancer dashboard --status
+
+# View logs
+ultrabalancer dashboard --logs
+
+# Stop everything
+ultrabalancer dashboard --stop
+
+# Full reset (removes all data)
+ultrabalancer dashboard --reset
+```
+
+## Manual Control
+
+```bash
+cd dashboard
+
+# Start services
+./start-dashboard.sh start
+
+# Stop services
+./start-dashboard.sh stop
+
+# Restart
+./start-dashboard.sh restart
+
+# View logs
+./start-dashboard.sh logs
+
+# Check status
+./start-dashboard.sh status
+```
+
+## Configure Multiple UltraBalancers
+
+Edit `dashboard/prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: 'production-lb'
+    static_configs:
+      - targets: ['prod-lb.example.com:8080']
+    metrics_path: /prometheus
+
+  - job_name: 'staging-lb'
+    static_configs:
+      - targets: ['staging-lb.example.com:8080']
+```
+
+Then reload Prometheus:
+
+```bash
+cd dashboard
+docker compose restart prometheus
+```
+
+## What's Included
+
+- **Grafana 10.2.0** - Dashboards and visualization
+- **Prometheus v2.48.0** - Metrics collection and storage
+- **Pre-built dashboard** - Request rate, latency, error rate, backend health
+- **Auto-provisioned datasource** - Prometheus configured automatically
