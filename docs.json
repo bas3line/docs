@@ -57,6 +57,14 @@
         ]
       },
       {
+        "group": "Integration",
+        "pages": [
+          "integration/monitoring",
+          "integration/cicd",
+          "integration/ai-agents"
+        ]
+      },
+      {
         "group": "API",
         "pages": [
           "api-reference/admin",
