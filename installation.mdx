@@ -75,18 +75,6 @@ cargo build --release
 sudo cp target/release/ultrabalancer /usr/local/bin/
 ```
 
-## Docker
-
-```bash
-# Pull the image
-docker pull ghcr.io/bas3line/ultrabalancer:latest
-
-# Run
-docker run -d -p 8080:8080 \
-  ghcr.io/bas3line/ultrabalancer:latest \
-  start round-robin backend1:8080 backend2:8080
-```
-
 ## Available Platforms
 
 | Platform | Status | File Format |

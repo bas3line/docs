@@ -46,8 +46,6 @@
       {
         "group": "Deployment",
         "pages": [
-          "deployment/docker",
-          "deployment/kubernetes",
           "deployment/linux-server"
         ]
       },
@@ -237,12 +235,8 @@
         "header": "Deployment",
         "items": [
           {
-            "label": "Docker",
-            "href": "/deployment/docker"
-          },
-          {
-            "label": "Kubernetes",
-            "href": "/deployment/kubernetes"
+            "label": "Linux Server",
+            "href": "/deployment/linux-server"
           },
           {
             "label": "Cloud Providers",

@@ -1,23 +1,33 @@
 ---
-title: 'Docker'
-description: 'Run UltraBalancer in Docker'
-icon: 'docker'
+title: 'Linux Server'
+description: 'Deploy UltraBalancer on Linux server'
+icon: 'server'
 ---
+
+## Quick Install
+
+```bash
+curl -sSL https://package.ultrabalancer.com/install.sh | sh
+```
+
+## Verify Installation
+
+```bash
+ultrabalancer --version
+```
 
 ## Quick Start
 
 ```bash
-# Run with backends
-docker run -d -p 80:8080 \
-  ghcr.io/bas3line/ultrabalancer:latest \
-  start round-robin backend1:8080 backend2:8080
+# Start with backends
+ultrabalancer start round-robin backend1:8080 backend2:8080
 ```
 
 ## With Config File
 
-```bash
-# Create config
-cat > config.yaml << 'EOF'
+Create a config file:
+
+```yaml
 listen_address: "0.0.0.0"
 listen_port: 8080
 algorithm: "round-robin"
@@ -26,60 +36,43 @@ backends:
     port: 8080
   - host: "backend2"
     port: 8080
-EOF
-
-# Run with config
-docker run -d -p 80:8080 -v $(pwd)/config.yaml:/config.yaml:ro \
-  ghcr.io/bas3line/ultrabalancer:latest \
-  start -c /config.yaml
 ```
 
-## Docker Compose
-
-```yaml
-services:
-  ultrabalancer:
-    image: ghcr.io/bas3line/ultrabalancer:latest
-    ports:
-      - "80:8080"
-    volumes:
-      - ./config.yaml:/config.yaml:ro
-    command: start -c /config.yaml
-
-  backend1:
-    image: nginx:alpine
-
-  backend2:
-    image: nginx:alpine
-```
+Run with config:
 
 ```bash
-docker compose up -d
+ultrabalancer start -c config.yaml
 ```
 
-## Environment Variables
+## Systemd Service
+
+Create `/etc/systemd/system/ultrabalancer.service`:
+
+```ini
+[Unit]
+Description=UltraBalancer Load Balancer
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/ultrabalancer
+ExecStart=/usr/local/bin/ultrabalancer start -c /etc/ultrabalancer/config.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
 
 ```bash
-docker run -d -p 80:8080 \
-  -e ULTRA_ALGORITHM=least-connections \
-  -e ULTRA_BACKENDS=backend1:8080,backend2:8080 \
-  ghcr.io/bas3line/ultrabalancer:latest
+sudo systemctl daemon-reload
+sudo systemctl enable ultrabalancer
+sudo systemctl start ultrabalancer
 ```
 
-## Health Check
+## Related
 
-```yaml
-services:
-  ultrabalancer:
-    image: ghcr.io/bas3line/ultrabalancer:latest
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-## Next Steps
-
-- [Linux Server](/deployment/linux-server) - Bare metal deployment
-- [Kubernetes](/deployment/kubernetes) - K8s deployment
+- [Systemd](/deployment/systemd) - Service management
+- [Configuration](/configuration/overview) - Full configuration guide
