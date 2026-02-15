@@ -1,467 +1,64 @@
 ---
-title: 'Load Testing Guide'
-description: 'Stress test UltraBalancer with Apache Bench, wrk, hey, and k6 for performance validation'
+title: 'Load Testing'
+description: 'Test UltraBalancer performance'
 icon: 'gauge-high'
 ---
 
-## Overview
-
-Load test UltraBalancer to validate performance, identify bottlenecks, and ensure it can handle your production traffic patterns.
-
-<CardGroup cols={2}>
-  <Card title="Apache Bench" icon="a">
-    Simple HTTP benchmarking tool
-  </Card>
-  <Card title="wrk" icon="w">
-    Modern HTTP benchmarking tool
-  </Card>
-  <Card title="hey" icon="h">
-    Go-based load generator
-  </Card>
-  <Card title="k6" icon="k">
-    Modern load testing for DevOps
-  </Card>
-</CardGroup>
-
-## Apache Bench (ab)
-
-### Installation
-
-<Tabs>
-  <Tab title="Ubuntu/Debian">
-    ```bash
-    sudo apt install apache2-utils
-    ```
-  </Tab>
-  <Tab title="macOS">
-    ```bash
-    # Pre-installed
-    ab -V
-    ```
-  </Tab>
-  <Tab title="CentOS/RHEL">
-    ```bash
-    sudo yum install httpd-tools
-    ```
-  </Tab>
-</Tabs>
-
-### Basic Usage
+## Quick Test
 
 ```bash
-# 1000 requests, 10 concurrent
-ab -n 1000 -c 10 http://localhost:8080/
+# Using hey (simple)
+hey -n 10000 -c 100 http://localhost:8080/
 
-# With keep-alive
-ab -n 10000 -c 100 -k http://localhost:8080/
+# Using wrk
+wrk -t4 -c100 -d30s http://localhost:8080/
 
-# POST requests with JSON
-ab -n 1000 -c 50 -p data.json -T application/json http://localhost:8080/api
-
-# Custom headers
-ab -n 1000 -c 50 -H "Authorization: Bearer token" http://localhost:8080/
+# Using ab
+ab -n 10000 -c 100 http://localhost:8080/
 ```
 
-### Output Analysis
+## Install Tools
 
 ```bash
-Benchmarking localhost (be patient)
-Completed 1000 requests
-Finished 1000 requests
+# hey (Go)
+go install github.com/rakyll/hey@latest
 
-Server Software:        UltraBalancer
-Server Hostname:        localhost
-Server Port:            8080
-
-Document Path:          /
-Document Length:        612 bytes
-
-Concurrency Level:      10
-Time taken for tests:   0.892 seconds
-Complete requests:      1000
-Failed requests:        0
-Total transferred:      810000 bytes
-HTML transferred:       612000 bytes
-Requests per second:    1121.08 [#/sec] (mean)
-Time per request:       8.920 [ms] (mean)
-Time per request:       0.892 [ms] (mean, across all concurrent requests)
-Transfer rate:          886.80 [Kbytes/sec] received
-
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:        0    0   0.1      0       1
-Processing:     2    9   3.2      8      25
-Waiting:        2    8   3.1      7      24
-Total:          2    9   3.2      8      25
-
-Percentage of the requests served within a certain time (ms)
-  50%      8
-  66%      9
-  75%     10
-  80%     11
-  90%     14
-  95%     17
-  98%     20
-  99%     22
- 100%     25 (longest request)
-```
-
-## wrk
-
-### Installation
-
-```bash
-# Clone and build
-git clone https://github.com/wg/wrk.git
-cd wrk
-make
-sudo cp wrk /usr/local/bin/
-
-# Or via package manager
+# wrk
 brew install wrk  # macOS
+# or: git clone https://github.com/wg/wrk.git && make
+
+# ab (Apache Bench)
+apt install apache2-utils  # Ubuntu
+brew install httpd-tools   # macOS
 ```
 
-### Basic Usage
+## Common Tests
 
 ```bash
-# 12 threads, 400 connections, 30 seconds
-wrk -t12 -c400 -d30s http://localhost:8080/
+# Baseline (100 concurrent, 10k requests)
+hey -n 10000 -c 100 http://localhost:8080/
 
-# With custom script
-wrk -t4 -c100 -d30s -s script.lua http://localhost:8080/
+# High concurrency (500 connections)
+hey -n 50000 -c 500 http://localhost:8080/
 
-# Latency distribution
+# Sustained load (30 seconds)
+wrk -t4 -c200 -d30s http://localhost:8080/
+
+# With latency stats
 wrk -t4 -c100 -d30s --latency http://localhost:8080/
 ```
 
-### Lua Scripts
-
-```lua post-request.lua
-wrk.method = "POST"
-wrk.body   = '{"key":"value"}'
-wrk.headers["Content-Type"] = "application/json"
-
-request = function()
-   return wrk.format(nil, "/api/endpoint")
-end
-
-response = function(status, headers, body)
-   if status ~= 200 then
-      print("Error: " .. status)
-   end
-end
-```
+## Monitor During Test
 
 ```bash
-wrk -t4 -c100 -d30s -s post-request.lua http://localhost:8080/
+# Watch metrics
+curl -s http://localhost:8080/metrics | jq '.'
+
+# Or Prometheus
+curl -s http://localhost:8080/prometheus
 ```
 
-## hey
+## Related
 
-### Installation
-
-```bash
-# Go install
-go install github.com/rakyll/hey@latest
-
-# Or download binary
-wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
-chmod +x hey_linux_amd64
-sudo mv hey_linux_amd64 /usr/local/bin/hey
-```
-
-### Usage
-
-```bash
-# 10000 requests, 50 concurrent
-hey -n 10000 -c 50 http://localhost:8080/
-
-# Rate limiting (100 QPS)
-hey -n 10000 -q 100 http://localhost:8080/
-
-# POST with body
-hey -n 1000 -m POST -H "Content-Type: application/json" \
-  -d '{"key":"value"}' http://localhost:8080/api
-
-# Custom headers
-hey -n 1000 -H "Authorization: Bearer token" http://localhost:8080/
-
-# Duration-based
-hey -z 30s -c 50 http://localhost:8080/
-```
-
-## k6
-
-### Installation
-
-```bash
-# Linux
-wget https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz
-tar -xzf k6-v0.47.0-linux-amd64.tar.gz
-sudo mv k6 /usr/local/bin/
-
-# macOS
-brew install k6
-
-# Windows
-choco install k6
-```
-
-### Load Test Script
-
-```javascript load-test.js
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-
-export const options = {
-  stages: [
-    { duration: '2m', target: 100 },  // Ramp up
-    { duration: '5m', target: 100 },  // Stay at 100 users
-    { duration: '2m', target: 200 },  // Ramp to 200 users
-    { duration: '5m', target: 200 },  // Stay at 200 users
-    { duration: '2m', target: 0 },    // Ramp down
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<500'],  // 95% of requests under 500ms
-    http_req_failed: ['rate<0.01'],    // Error rate under 1%
-  },
-};
-
-export default function () {
-  const res = http.get('http://localhost:8080/');
-
-  check(res, {
-    'status is 200': (r) => r.status === 200,
-    'response time < 500ms': (r) => r.timings.duration < 500,
-  });
-
-  sleep(1);
-}
-```
-
-```bash
-# Run test
-k6 run load-test.js
-
-# Run with JSON output
-k6 run --out json=results.json load-test.js
-
-# Run with InfluxDB output
-k6 run --out influxdb=http://localhost:8086/k6 load-test.js
-```
-
-### Advanced k6 Test
-
-```javascript advanced-test.js
-import http from 'k6/http';
-import { check, group } from 'k6';
-
-export const options = {
-  scenarios: {
-    constant_load: {
-      executor: 'constant-vus',
-      vus: 50,
-      duration: '5m',
-    },
-    spike_test: {
-      executor: 'ramping-vus',
-      startTime: '5m',
-      stages: [
-        { duration: '10s', target: 500 },
-        { duration: '1m', target: 500 },
-        { duration: '10s', target: 0 },
-      ],
-    },
-  },
-  thresholds: {
-    'http_req_duration{scenario:constant_load}': ['p(95)<200'],
-    'http_req_duration{scenario:spike_test}': ['p(95)<1000'],
-  },
-};
-
-export default function () {
-  group('Homepage', function () {
-    const res = http.get('http://localhost:8080/');
-    check(res, { 'status 200': (r) => r.status === 200 });
-  });
-
-  group('API', function () {
-    const res = http.post('http://localhost:8080/api', JSON.stringify({
-      key: 'value',
-    }), { headers: { 'Content-Type': 'application/json' } });
-    check(res, { 'status 200': (r) => r.status === 200 });
-  });
-}
-```
-
-## Test Scenarios
-
-### Baseline Performance
-
-```bash
-# Establish baseline
-ab -n 10000 -c 100 http://localhost:8080/ > baseline.txt
-
-# Compare after changes
-ab -n 10000 -c 100 http://localhost:8080/ > after-changes.txt
-diff baseline.txt after-changes.txt
-```
-
-### Stress Testing
-
-```bash
-# Gradually increase load
-for c in 10 50 100 200 500 1000; do
-  echo "Testing with $c concurrent connections..."
-  ab -n 10000 -c $c http://localhost:8080/ | grep "Requests per second"
-  sleep 5
-done
-```
-
-### Spike Testing
-
-```bash
-# Sudden load spike
-hey -z 10s -c 10 http://localhost:8080/
-sleep 5
-hey -z 30s -c 1000 http://localhost:8080/  # Spike!
-sleep 5
-hey -z 10s -c 10 http://localhost:8080/
-```
-
-### Endurance Testing
-
-```bash
-# Long-running test (1 hour)
-wrk -t4 -c100 -d1h --latency http://localhost:8080/
-
-# Or with k6
-k6 run --duration 1h --vus 100 load-test.js
-```
-
-## Monitoring During Tests
-
-### Real-time Metrics
-
-```bash
-# Terminal 1: Run load test
-hey -z 60s -c 100 http://localhost:8080/
-
-# Terminal 2: Watch metrics
-watch -n 1 'curl -s http://localhost:8080/metrics | jq ".requests_per_second, .avg_response_time_ms"'
-
-# Terminal 3: Monitor system resources
-htop
-
-# Terminal 4: Watch connections
-watch -n 1 'ss -s'
-```
-
-## Results Analysis
-
-### Key Metrics to Track
-
-<Accordion title="Throughput">
-  - **Requests per second (RPS)**: Target varies by application
-  - **Transactions per second (TPS)**: For write-heavy workloads
-  - **Bytes per second**: Network throughput
-</Accordion>
-
-<Accordion title="Latency">
-  - **Average latency**: Mean response time
-  - **p50 (median)**: 50% of requests faster than this
-  - **p95**: 95% of requests faster than this
-  - **p99**: 99% of requests faster than this
-  - **Max latency**: Worst-case scenario
-</Accordion>
-
-<Accordion title="Errors">
-  - **Error rate**: Percentage of failed requests
-  - **Timeout rate**: Requests that timed out
-  - **Connection errors**: Failed to connect
-</Accordion>
-
-<Accordion title="System Resources">
-  - **CPU usage**: Should not hit 100%
-  - **Memory usage**: Watch for memory leaks
-  - **Network bandwidth**: Avoid saturation
-  - **File descriptors**: Ensure sufficient limits
-</Accordion>
-
-## Best Practices
-
-<Tip>
-**Load Testing Tips**
-
-1. **Test in isolated environment** - Avoid affecting production
-2. **Start small** - Begin with low load, increase gradually
-3. **Monitor everything** - CPU, memory, network, disk
-4. **Run multiple iterations** - Results should be consistent
-5. **Test different scenarios** - Baseline, stress, spike, endurance
-6. **Compare algorithms** - Test round-robin vs least-connections
-7. **Document results** - Track performance over time
-</Tip>
-
-<Warning>
-**Avoid These Mistakes**
-
-- Testing from same machine as load balancer
-- Not accounting for connection limits
-- Testing without health checks enabled
-- Ignoring p95/p99 latencies
-- Not simulating realistic traffic patterns
-</Warning>
-
-## Example Test Suite
-
-```bash test-suite.sh
-#!/bin/bash
-
-echo "UltraBalancer Load Test Suite"
-echo "=============================="
-
-# Configuration
-LB_URL="http://localhost:8080"
-RESULTS_DIR="./results"
-mkdir -p $RESULTS_DIR
-
-# Test 1: Baseline (100 concurrent, 10k requests)
-echo "Test 1: Baseline performance..."
-ab -n 10000 -c 100 $LB_URL/ > $RESULTS_DIR/test1-baseline.txt
-
-# Test 2: High concurrency (500 concurrent)
-echo "Test 2: High concurrency..."
-ab -n 50000 -c 500 $LB_URL/ > $RESULTS_DIR/test2-high-concurrency.txt
-
-# Test 3: Sustained load (60 seconds)
-echo "Test 3: Sustained load..."
-wrk -t4 -c200 -d60s --latency $LB_URL/ > $RESULTS_DIR/test3-sustained.txt
-
-# Test 4: Spike test
-echo "Test 4: Spike test..."
-k6 run --out json=$RESULTS_DIR/test4-spike.json spike-test.js
-
-echo "Tests complete. Results in $RESULTS_DIR/"
-
-# Generate summary
-echo "Summary:"
-echo "--------"
-grep "Requests per second" $RESULTS_DIR/*.txt
-```
-
-## Related Topics
-
-<CardGroup cols={2}>
-  <Card title="Local Testing" icon="flask" href="/testing/local-testing">
-    Test locally before load testing
-  </Card>
-  <Card title="Benchmarks" icon="chart-line" href="/testing/benchmarks">
-    Performance benchmarks and comparisons
-  </Card>
-  <Card title="Performance Tuning" icon="gauge-high" href="/advanced/performance-tuning">
-    Optimize for maximum performance
-  </Card>
-  <Card title="Monitoring" icon="chart-mixed" href="/integration/monitoring">
-    Monitor during load tests
-  </Card>
-</CardGroup>
+- [Benchmarks](/testing/benchmarks) - Official performance data
+- [Monitoring](/integration/monitoring) - Grafana setup

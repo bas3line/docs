@@ -1,52 +1,25 @@
 ---
-title: 'Configuration Overview'
-description: 'Complete guide to configuring UltraBalancer via CLI, YAML, TOML, or environment variables'
+title: 'Configuration'
+description: 'Configure UltraBalancer via CLI, YAML, or environment variables'
 icon: 'sliders'
 ---
 
-## Overview
+## Quick Config
 
-UltraBalancer supports multiple configuration methods to fit different deployment scenarios. Choose the approach that works best for your infrastructure.
-
-<CardGroup cols={2}>
-  <Card title="CLI Arguments" icon="terminal">
-    Quick setup with command-line flags
-  </Card>
-  <Card title="YAML Config" icon="file-code">
-    Human-readable configuration files
-  </Card>
-  <Card title="TOML Config" icon="file-lines">
-    Type-safe structured configuration
-  </Card>
-  <Card title="Environment Variables" icon="code">
-    12-factor app compliance
-  </Card>
-</CardGroup>
-
-## Configuration Methods
-
-### 1. Command-Line Arguments
-
-Perfect for quick testing and simple deployments:
+### CLI Arguments
 
 ```bash
-ultrabalancer \
+ultrabalancer start round-robin backend1:8080 backend2:8080 \
   --port 8080 \
-  --algorithm round-robin \
-  --backend server1:8080 \
-  --backend server2:8080 \
-  --health-check-interval 5000
+  --cache \
+  --compression gzip
 ```
 
-<Tip>
-CLI arguments take precedence over config files. Use them to override specific settings in production.
-</Tip>
+### Config File (YAML)
 
-### 2. YAML Configuration File
+Create `config.yaml`:
 
-Recommended for production deployments:
-
-```yaml config.yaml
+```yaml
 listen_address: "0.0.0.0"
 listen_port: 8080
 algorithm: "round-robin"
@@ -55,598 +28,92 @@ backends:
   - host: "192.168.1.10"
     port: 8080
     weight: 100
-
   - host: "192.168.1.11"
     port: 8080
     weight: 100
-
-health_check:
-  enabled: true
-  interval_ms: 5000
-  max_failures: 3
-
-timeout:
-  connect_ms: 5000
-  request_ms: 30000
 ```
+
+Run it:
 
 ```bash
-ultrabalancer -c config.yaml
+ultrabalancer start -c config.yaml
 ```
 
-### 3. TOML Configuration File
-
-Alternative structured format:
-
-```toml config.toml
-listen_address = "0.0.0.0"
-listen_port = 8080
-algorithm = "round-robin"
-
-[[backends]]
-host = "192.168.1.10"
-port = 8080
-weight = 100
-
-[[backends]]
-host = "192.168.1.11"
-port = 8080
-weight = 100
-
-[health_check]
-enabled = true
-interval_ms = 5000
-max_failures = 3
-
-[timeout]
-connect_ms = 5000
-request_ms = 30000
-```
-
-```bash
-ultrabalancer -c config.toml
-```
-
-### 4. Environment Variables
-
-12-factor app compliant configuration:
-
-```bash
-# Basic settings
-export ULTRA_LISTEN_ADDRESS="0.0.0.0"
-export ULTRA_LISTEN_PORT="8080"
-export ULTRA_ALGORITHM="round-robin"
-
-# Backends (comma-separated)
-export ULTRA_BACKENDS="server1:8080,server2:8080,server3:8080"
-
-# Health checks
-export ULTRA_HEALTH_CHECK_ENABLED="true"
-export ULTRA_HEALTH_CHECK_INTERVAL_MS="5000"
-export ULTRA_HEALTH_CHECK_MAX_FAILURES="3"
-
-# Timeouts
-export ULTRA_TIMEOUT_CONNECT_MS="5000"
-export ULTRA_TIMEOUT_REQUEST_MS="30000"
-
-ultrabalancer
-```
-
-## Configuration Hierarchy
-
-Configuration values are resolved in the following order (highest to lowest priority):
-
-<Steps>
-  <Step title="Command-Line Arguments">
-    Highest priority - always override other sources
-    ```bash
-    ultrabalancer -c config.yaml --port 9090  # Port 9090 wins
-    ```
-  </Step>
-
-  <Step title="Environment Variables">
-    Second priority - useful for containerized deployments
-    ```bash
-    export ULTRA_PORT=9090
-    ultrabalancer -c config.yaml  # Env var wins over file
-    ```
-  </Step>
-
-  <Step title="Configuration File">
-    Third priority - main configuration source
-    ```yaml
-    listen_port: 8080
-    ```
-  </Step>
-
-  <Step title="Default Values">
-    Lowest priority - sensible defaults
-    ```rust
-    const DEFAULT_PORT: u16 = 8080;
-    ```
-  </Step>
-</Steps>
-
-## Configuration Structure
-
-### Top-Level Options
-
-<ParamField path="listen_address" type="string" default="0.0.0.0">
-  IP address to bind to. Use `0.0.0.0` for all interfaces, `127.0.0.1` for localhost only.
-</ParamField>
-
-<ParamField path="listen_port" type="integer" default="8080">
-  Port number to listen on (1-65535).
-</ParamField>
-
-<ParamField path="algorithm" type="string" default="round-robin">
-  Load balancing algorithm: `round-robin`, `least-connections`, `ip-hash`, `random`, `weighted`.
-</ParamField>
-
-<ParamField path="workers" type="integer" default="auto">
-  Number of worker threads. Set to `auto` to match CPU cores.
-</ParamField>
-
-<ParamField path="max_connections" type="integer" default="10000">
-  Maximum concurrent connections.
-</ParamField>
-
-### Backend Configuration
-
-<ParamField path="backends" type="array" required>
-  Array of backend servers.
-</ParamField>
-
-<ParamField path="backends[].host" type="string" required>
-  Backend hostname or IP address.
-</ParamField>
-
-<ParamField path="backends[].port" type="integer" required>
-  Backend port number.
-</ParamField>
-
-<ParamField path="backends[].weight" type="integer" default="100">
-  Backend weight for weighted algorithms (1-1000).
-</ParamField>
-
-<ParamField path="backends[].max_connections" type="integer" default="1000">
-  Maximum connections per backend.
-</ParamField>
-
-### Health Check Configuration
-
-<ParamField path="health_check.enabled" type="boolean" default="true">
-  Enable/disable health checking.
-</ParamField>
-
-<ParamField path="health_check.interval_ms" type="integer" default="5000">
-  Health check interval in milliseconds.
-</ParamField>
-
-<ParamField path="health_check.timeout_ms" type="integer" default="2000">
-  Health check timeout in milliseconds.
-</ParamField>
-
-<ParamField path="health_check.max_failures" type="integer" default="3">
-  Number of failures before marking backend unhealthy.
-</ParamField>
-
-<ParamField path="health_check.path" type="string" default="/">
-  HTTP path for health checks.
-</ParamField>
-
-### Timeout Configuration
-
-<ParamField path="timeout.connect_ms" type="integer" default="5000">
-  Connection timeout in milliseconds.
-</ParamField>
-
-<ParamField path="timeout.request_ms" type="integer" default="30000">
-  Request timeout in milliseconds.
-</ParamField>
-
-<ParamField path="timeout.idle_ms" type="integer" default="60000">
-  Idle connection timeout in milliseconds.
-</ParamField>
-
-### Response Caching
-
-<ParamField path="cache.enabled" type="boolean" default="false">
-  Enable response caching for GET/HEAD requests.
-</ParamField>
-
-<ParamField path="cache.max_size" type="integer" default="10000">
-  Maximum number of cached responses.
-</ParamField>
-
-<ParamField path="cache.default_ttl_seconds" type="integer" default="300">
-  Default TTL when no Cache-Control header present.
-</ParamField>
-
-### Compression
-
-<ParamField path="compression.enabled" type="boolean" default="false">
-  Enable response compression.
-</ParamField>
-
-<ParamField path="compression.algorithm" type="string" default="gzip">
-  Compression algorithm: `gzip`, `brotli`, `zstd`.
-</ParamField>
-
-<ParamField path="compression.min_size" type="integer" default="1024">
-  Minimum response size to compress (bytes).
-</ParamField>
-
-### Rate Limiting
-
-<ParamField path="rate_limit.enabled" type="boolean" default="false">
-  Enable rate limiting.
-</ParamField>
-
-<ParamField path="rate_limit.requests_per_second" type="integer" default="1000">
-  Global rate limit (requests per second).
-</ParamField>
-
-<ParamField path="rate_limit.per_ip_rps" type="integer" default="100">
-  Per-IP rate limit (requests per second).
-</ParamField>
-
-<ParamField path="rate_limit.burst" type="integer" default="50">
-  Burst allowance above rate limit.
-</ParamField>
-
-### IP Filtering
-
-<ParamField path="ip_filter.whitelist" type="array">
-  Array of allowed IP addresses/CIDR ranges. If set, only these IPs are allowed.
-</ParamField>
-
-<ParamField path="ip_filter.blacklist" type="array">
-  Array of blocked IP addresses/CIDR ranges.
-</ParamField>
-
-### Sticky Sessions
-
-<ParamField path="sticky_sessions.enabled" type="boolean" default="false">
-  Enable cookie-based sticky sessions.
-</ParamField>
-
-<ParamField path="sticky_sessions.cookie_name" type="string" default="ULTRABALANCER_SESSION">
-  Name of the session cookie.
-</ParamField>
-
-<ParamField path="sticky_sessions.ttl_seconds" type="integer" default="3600">
-  Session TTL in seconds.
-</ParamField>
-
-### Retry Configuration
-
-<ParamField path="retry.enabled" type="boolean" default="true">
-  Enable retry on backend failures.
-</ParamField>
-
-<ParamField path="retry.max_attempts" type="integer" default="3">
-  Maximum retry attempts.
-</ParamField>
-
-<ParamField path="retry.backoff_ms" type="integer" default="100">
-  Initial backoff delay in milliseconds.
-</ParamField>
-
-<ParamField path="retry.max_backoff_ms" type="integer" default="5000">
-  Maximum backoff delay in milliseconds.
-</ParamField>
-
-### Access Logging
-
-<ParamField path="access_log.enabled" type="boolean" default="false">
-  Enable access logging.
-</ParamField>
-
-<ParamField path="access_log.path" type="string">
-  Path to access log file.
-</ParamField>
-
-<ParamField path="access_log.format" type="string" default="combined">
-  Log format: `combined`, `json`.
-</ParamField>
-
-### TLS Configuration
-
-<ParamField path="tls.enabled" type="boolean" default="false">
-  Enable TLS termination.
-</ParamField>
-
-<ParamField path="tls.cert_path" type="string">
-  Path to TLS certificate file (PEM format).
-</ParamField>
-
-<ParamField path="tls.key_path" type="string">
-  Path to TLS private key file (PEM format).
-</ParamField>
-
-## Complete Configuration Example
-
-<CodeGroup>
-
-```yaml config.yaml
-# UltraBalancer v3.0 Production Configuration
-
-# Listener configuration
-listen_address: "0.0.0.0"
-listen_port: 443
-workers: auto
-max_connections: 50000
-
-# Load balancing
-algorithm: "least-connections"
-
-# Backend servers
-backends:
-  - host: "backend1.prod.internal"
-    port: 8080
-    weight: 100
-  - host: "backend2.prod.internal"
-    port: 8080
-    weight: 100
-  - host: "backend3.prod.internal"
-    port: 8080
-    weight: 100
-
-# Health checks
-health_check:
-  enabled: true
-  interval_ms: 3000
-  timeout_ms: 1500
-  max_failures: 3
-  path: "/health"
-
-# Response caching
-cache:
-  enabled: true
-  max_size: 10000
-  default_ttl_seconds: 300
-
-# Compression
-compression:
-  enabled: true
-  algorithm: "gzip"      # gzip, brotli, zstd
-  min_size: 1024
-
-# Rate limiting
-rate_limit:
-  enabled: true
-  requests_per_second: 10000
-  per_ip_rps: 100
-  burst: 50
-
-# IP filtering
-ip_filter:
-  blacklist:
-    - "10.0.0.0/8"       # Block internal probes
-
-# Sticky sessions
-sticky_sessions:
-  enabled: true
-  cookie_name: "ULTRABALANCER_SESSION"
-  ttl_seconds: 3600
-
-# Retry with backoff
-retry:
-  enabled: true
-  max_attempts: 3
-  backoff_ms: 100
-  max_backoff_ms: 5000
-
-# Access logging
-access_log:
-  enabled: true
-  path: "/var/log/ultrabalancer/access.log"
-  format: "json"
-
-# TLS termination
-tls:
-  enabled: true
-  cert_path: "/etc/ultrabalancer/cert.pem"
-  key_path: "/etc/ultrabalancer/key.pem"
-
-# Graceful shutdown
-shutdown:
-  timeout_seconds: 30
-  drain_connections: true
-```
-
-```toml config.toml
-# UltraBalancer v3.0 Production Configuration
-
-listen_address = "0.0.0.0"
-listen_port = 443
-workers = "auto"
-max_connections = 50000
-algorithm = "least-connections"
-
-[[backends]]
-host = "backend1.prod.internal"
-port = 8080
-weight = 100
-
-[[backends]]
-host = "backend2.prod.internal"
-port = 8080
-weight = 100
-
-[health_check]
-enabled = true
-interval_ms = 3000
-max_failures = 3
-path = "/health"
-
-[cache]
-enabled = true
-max_size = 10000
-
-[compression]
-enabled = true
-algorithm = "gzip"
-
-[rate_limit]
-enabled = true
-requests_per_second = 10000
-per_ip_rps = 100
-
-[sticky_sessions]
-enabled = true
-cookie_name = "ULTRABALANCER_SESSION"
-
-[retry]
-enabled = true
-max_attempts = 3
-
-[access_log]
-enabled = true
-path = "/var/log/ultrabalancer/access.log"
-format = "json"
-
-[tls]
-enabled = true
-cert_path = "/etc/ultrabalancer/cert.pem"
-key_path = "/etc/ultrabalancer/key.pem"
-```
-
-```bash Environment Variables
-# Listener
-export ULTRA_LISTEN_ADDRESS="0.0.0.0"
-export ULTRA_LISTEN_PORT="80"
-export ULTRA_WORKERS="auto"
-export ULTRA_MAX_CONNECTIONS="10000"
-
-# Algorithm
-export ULTRA_ALGORITHM="least-connections"
-
-# Backends
-export ULTRA_BACKENDS="backend1.prod.internal:8080:150,backend2.prod.internal:8080:150,backend3.prod.internal:8080:100"
-
-# Health checks
-export ULTRA_HEALTH_CHECK_ENABLED="true"
-export ULTRA_HEALTH_CHECK_INTERVAL_MS="3000"
-export ULTRA_HEALTH_CHECK_TIMEOUT_MS="1500"
-export ULTRA_HEALTH_CHECK_MAX_FAILURES="3"
-
-# Timeouts
-export ULTRA_TIMEOUT_CONNECT_MS="5000"
-export ULTRA_TIMEOUT_REQUEST_MS="30000"
-export ULTRA_TIMEOUT_IDLE_MS="60000"
-
-# Logging
-export ULTRA_LOG_LEVEL="info"
-export ULTRA_LOG_FORMAT="json"
-
-ultrabalancer
-```
-
-</CodeGroup>
-
-## Validation
-
-Validate your configuration before deployment:
-
-<CodeGroup>
-
-```bash Validate Command
-ultrabalancer validate -c config.yaml
-```
-
-```bash Output
-✓ Configuration is valid
-
-Summary:
-  Listen: 0.0.0.0:80
-  Algorithm: least-connections
-  Backends: 3
-  Health Checks: enabled
-  Workers: 8 (auto-detected)
-```
-
-```bash Invalid Config
-ultrabalancer validate -c bad-config.yaml
-```
-
-```bash Error Output
-✗ Configuration validation failed:
-
-Error: Invalid backend port
-  → backends[0].port: must be between 1 and 65535
-  File: bad-config.yaml:8
-
-Error: Invalid health check interval
-  → health_check.interval_ms: must be at least 1000ms
-  File: bad-config.yaml:15
-```
-
-</CodeGroup>
-
-## Configuration Templates
-
-### Development Template
-
-```yaml config-dev.yaml
-listen_address: "127.0.0.1"
-listen_port: 8080
-algorithm: "round-robin"
-
-backends:
-  - host: "localhost"
-    port: 3001
-  - host: "localhost"
-    port: 3002
-
-health_check:
-  enabled: true
-  interval_ms: 10000        # Less aggressive
-  max_failures: 5
-
-logging:
-  level: "debug"
-  format: "text"
-```
-
-### Staging Template
-
-```yaml config-staging.yaml
-listen_address: "0.0.0.0"
-listen_port: 8080
-algorithm: "least-connections"
-
-backends:
-  - host: "backend1.staging.internal"
-    port: 8080
-  - host: "backend2.staging.internal"
-    port: 8080
-
-health_check:
-  enabled: true
-  interval_ms: 5000
-  max_failures: 3
-
-logging:
-  level: "info"
-  format: "json"
-```
-
-### Production Template
-
-```yaml config-prod.yaml
+## Config Options
+
+<AccordionGroup>
+  <Accordion title="Listener">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `listen_address` | `0.0.0.0` | IP to bind to |
+    | `listen_port` | `8080` | Port to listen on |
+    | `workers` | `auto` | Worker threads (or number) |
+    | `max_connections` | `10000` | Max concurrent connections |
+  </Accordion>
+
+  <Accordion title="Backends">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `host` | - | Backend hostname/IP (required) |
+    | `port` | - | Backend port (required) |
+    | `weight` | `100` | Weight for weighted algorithms |
+    | `max_connections` | `1000` | Max connections to this backend |
+  </Accordion>
+
+  <Accordion title="Health Checks">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `enabled` | `true` | Enable health checking |
+    | `interval_ms` | `5000` | Check interval in ms |
+    | `max_failures` | `3` | Failures before marking unhealthy |
+    | `path` | `/` | HTTP path for checks |
+  </Accordion>
+
+  <Accordion title="Caching">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `enabled` | `false` | Enable response caching |
+    | `max_size` | `10000` | Max cached responses |
+    | `default_ttl_seconds` | `300` | Default TTL |
+  </Accordion>
+
+  <Accordion title="Compression">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `enabled` | `false` | Enable compression |
+    | `algorithm` | `gzip` | `gzip`, `brotli`, or `zstd` |
+    | `min_size` | `1024` | Min bytes to compress |
+  </Accordion>
+
+  <Accordion title="Rate Limiting">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `enabled` | `false` | Enable rate limiting |
+    | `requests_per_second` | `1000` | Global RPS limit |
+    | `per_ip_rps` | `100` | Per-IP RPS limit |
+  </Accordion>
+
+  <Accordion title="TLS">
+    | Option | Default | Description |
+    |--------|---------|-------------|
+    | `enabled` | `false` | Enable TLS termination |
+    | `cert_path` | - | Path to certificate (PEM) |
+    | `key_path` | - | Path to private key (PEM) |
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+```yaml
 listen_address: "0.0.0.0"
 listen_port: 443
 algorithm: "least-connections"
-workers: auto
-max_connections: 50000
 
 backends:
-  - host: "backend1.prod.internal"
+  - host: "backend1.internal"
     port: 8080
     weight: 100
-  - host: "backend2.prod.internal"
+  - host: "backend2.internal"
     port: 8080
     weight: 100
 
@@ -657,7 +124,6 @@ health_check:
 
 cache:
   enabled: true
-  max_size: 10000
 
 compression:
   enabled: true
@@ -666,95 +132,30 @@ compression:
 rate_limit:
   enabled: true
   requests_per_second: 10000
-  per_ip_rps: 100
-
-retry:
-  enabled: true
-  max_attempts: 3
-
-access_log:
-  enabled: true
-  path: "/var/log/ultrabalancer/access.log"
-  format: "json"
 
 tls:
   enabled: true
   cert_path: "/etc/ultrabalancer/cert.pem"
   key_path: "/etc/ultrabalancer/key.pem"
-
-shutdown:
-  timeout_seconds: 30
-  drain_connections: true
 ```
 
-## Dynamic Configuration Reload
-
-UltraBalancer supports hot-reloading configuration without downtime:
+## Environment Variables
 
 ```bash
-# Send SIGHUP signal to reload config
-kill -HUP $(pidof ultrabalancer)
-
-# Or use systemd
-systemctl reload ultrabalancer
+export ULTRA_LISTEN_ADDRESS="0.0.0.0"
+export ULTRA_LISTEN_PORT="8080"
+export ULTRA_ALGORITHM="round-robin"
+export ULTRA_BACKENDS="backend1:8080,backend2:8080"
 ```
 
-<Warning>
-Configuration reload will:
-- Update backend list (add/remove/modify backends)
-- Change algorithm settings
-- Adjust health check parameters
-
-**NOT** reloaded:
-- Listen address/port (requires restart)
-- Worker count (requires restart)
-- TLS certificates (requires restart)
-</Warning>
-
-## Best Practices
-
-<Tip>
-**Configuration Tips**
-
-1. **Use config files in production** - More maintainable than CLI args
-2. **Version control your configs** - Track changes over time
-3. **Validate before deployment** - Use `validate` command
-4. **Use environment variables for secrets** - Don't commit credentials
-5. **Start with templates** - Modify for your needs
-6. **Document custom settings** - Add comments explaining why
-</Tip>
-
-### Security Considerations
-
-```yaml config.yaml
-# DON'T: Hard-code secrets
-tls:
-  key_password: "mysecretpassword"  # Bad!
-
-# DO: Use environment variables
-tls:
-  key_password: "${TLS_KEY_PASSWORD}"  # Good!
-```
+## Validate Config
 
 ```bash
-# Set secrets via environment
-export TLS_KEY_PASSWORD="mysecretpassword"
-ultrabalancer -c config.yaml
+ultrabalancer validate -c config.yaml
 ```
 
-## Related Topics
+## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="CLI Reference" icon="terminal" href="/configuration/cli-reference">
-    Complete command-line interface documentation
-  </Card>
-  <Card title="File Config" icon="file-code" href="/configuration/file-config">
-    Detailed YAML/TOML reference
-  </Card>
-  <Card title="Examples" icon="list-check" href="/configuration/examples">
-    Real-world configuration examples
-  </Card>
-  <Card title="Deployment" icon="rocket" href="/deployment/linux-server">
-    Deploy with your configuration
-  </Card>
-</CardGroup>
+- [CLI Reference](/configuration/cli-reference) - All commands
+- [File Config](/configuration/file-config) - YAML/TOML reference
+- [Examples](/configuration/examples) - Real-world configs

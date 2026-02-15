@@ -1,618 +1,136 @@
 ---
 title: 'Installation'
-description: 'Install UltraBalancer on any Linux distribution or build from source'
+description: 'Install UltraBalancer on Linux, macOS, or Windows'
 ---
 
-## Overview
+## Quick Install (Recommended)
 
-UltraBalancer can be installed via pre-built binaries or compiled from source. We support all major Linux distributions, macOS, and Windows (via WSL).
+```bash
+# One-command install - automatically detects your OS and architecture
+curl -sSL https://package.ultrabalancer.com/install.sh | sh
+```
 
-<Note>
-**No package managers yet** - We don't have Homebrew, apt, or yum packages. Use pre-built binaries or build from source.
-</Note>
+That's it! The installer will:
+1. Detect your operating system (Linux, macOS, Windows)
+2. Detect your architecture (x86_64, ARM64)
+3. Download the latest release from GitHub
+4. Install to `/usr/local/bin/`
 
-## Quick Install
+Verify the installation:
 
-<CodeGroup>
-
-```bash Ubuntu/Debian
-# Download latest release
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
-
-# Make executable
-chmod +x ultrabalancer-linux-x86_64
-
-# Move to system path
-sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
-
-# Verify installation
+```bash
 ultrabalancer --version
 ```
 
-```bash CentOS/RHEL/Fedora
-# Download latest release
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
+## Manual Installation
 
-# Make executable
-chmod +x ultrabalancer-linux-x86_64
+### Linux (x86_64)
 
-# Move to system path
-sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
+```bash
+# Download the latest release
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-3.0.0-x86_64-unknown-linux-gnu.tar.gz
 
-# Verify installation
-ultrabalancer --version
+# Extract
+tar -xzf ultrabalancer-3.0.0-x86_64-unknown-linux-gnu.tar.gz
+
+# Install
+sudo mv ultrabalancer-3.0.0-x86_64-unknown-linux-gnu/ultrabalancer /usr/local/bin/
 ```
 
-```bash Arch Linux
-# Download latest release
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
+### macOS
 
-# Make executable
-chmod +x ultrabalancer-linux-x86_64
-
-# Move to system path
-sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
-
-# Verify installation
-ultrabalancer --version
+**Apple Silicon (M1/M2/M3):**
+```bash
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-3.0.0-aarch64-apple-darwin.tar.gz
+tar -xzf ultrabalancer-3.0.0-aarch64-apple-darwin.tar.gz
+sudo mv ultrabalancer-3.0.0-aarch64-apple-darwin/ultrabalancer /usr/local/bin/
 ```
 
-```bash macOS (Intel)
-# Download for Intel Macs
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-darwin-x86_64
-
-# Make executable
-chmod +x ultrabalancer-darwin-x86_64
-
-# Move to system path
-sudo mv ultrabalancer-darwin-x86_64 /usr/local/bin/ultrabalancer
-
-# Verify installation
-ultrabalancer --version
+**Intel:**
+```bash
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-3.0.0-x86_64-apple-darwin.tar.gz
+tar -xzf ultrabalancer-3.0.0-x86_64-apple-darwin.tar.gz
+sudo mv ultrabalancer-3.0.0-x86_64-apple-darwin/ultrabalancer /usr/local/bin/
 ```
 
-```bash macOS (Apple Silicon)
-# Download for M1/M2/M3 Macs
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-darwin-arm64
+### Windows
 
-# Make executable
-chmod +x ultrabalancer-darwin-arm64
-
-# Move to system path
-sudo mv ultrabalancer-darwin-arm64 /usr/local/bin/ultrabalancer
-
-# Verify installation
-ultrabalancer --version
-```
-
-</CodeGroup>
+Download the latest release from the [GitHub Releases](https://github.com/bas3line/ultrabalancer/releases) page and extract the ZIP file.
 
 ## Build from Source
 
-Building from source gives you the latest features and optimizations for your specific CPU architecture.
+Requires Rust 1.75+:
 
-### Prerequisites
+```bash
+# Install Rust if you don't have it
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
 
-<Steps>
-  <Step title="Install Rust">
-    UltraBalancer requires Rust 1.75 or higher.
+# Clone and build
+git clone https://github.com/bas3line/ultrabalancer.git
+cd ultrabalancer
+cargo build --release
 
-    ```bash
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-    ```
+# Install
+sudo cp target/release/ultrabalancer /usr/local/bin/
+```
 
-    Verify installation:
-    ```bash
-    rustc --version
-    cargo --version
-    ```
-  </Step>
+## Docker
 
-  <Step title="Install Build Dependencies">
-    <Tabs>
-      <Tab title="Ubuntu/Debian">
-        ```bash
-        sudo apt update
-        sudo apt install -y build-essential pkg-config libssl-dev git
-        ```
-      </Tab>
-
-      <Tab title="CentOS/RHEL 8+">
-        ```bash
-        sudo dnf groupinstall "Development Tools"
-        sudo dnf install -y pkg-config openssl-devel git
-        ```
-      </Tab>
-
-      <Tab title="CentOS/RHEL 7">
-        ```bash
-        sudo yum groupinstall "Development Tools"
-        sudo yum install -y pkg-config openssl-devel git
-        ```
-      </Tab>
-
-      <Tab title="Fedora">
-        ```bash
-        sudo dnf groupinstall "C Development Tools and Libraries"
-        sudo dnf install -y pkg-config openssl-devel git
-        ```
-      </Tab>
-
-      <Tab title="Arch Linux">
-        ```bash
-        sudo pacman -S base-devel openssl git
-        ```
-      </Tab>
-
-      <Tab title="openSUSE">
-        ```bash
-        sudo zypper install -t pattern devel_basis
-        sudo zypper install pkg-config libopenssl-devel git
-        ```
-      </Tab>
-
-      <Tab title="Alpine Linux">
-        ```bash
-        apk add build-base pkgconfig openssl-dev git
-        ```
-      </Tab>
-
-      <Tab title="macOS">
-        ```bash
-        # Xcode Command Line Tools
-        xcode-select --install
-
-        # Or install via Homebrew (if available)
-        brew install openssl pkg-config
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
-
-  <Step title="Clone Repository">
-    ```bash
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    ```
-  </Step>
-
-  <Step title="Build Release Binary">
-    ```bash
-    cargo build --release
-    ```
-
-    This will take 2-5 minutes depending on your CPU. The optimized binary will be at:
-    ```
-    target/release/ultrabalancer
-    ```
-
-    <Tip>
-    The release build is highly optimized with LTO (Link-Time Optimization) and will be significantly faster than debug builds.
-    </Tip>
-  </Step>
-
-  <Step title="Install System-Wide">
-    ```bash
-    # Install to /usr/local/bin
-    sudo cp target/release/ultrabalancer /usr/local/bin/
-
-    # Or install to ~/.cargo/bin (already in PATH if you installed Rust)
-    cp target/release/ultrabalancer ~/.cargo/bin/
-    ```
-
-    Verify:
-    ```bash
-    ultrabalancer --version
-    ultrabalancer info
-    ```
-  </Step>
-</Steps>
-
-## Docker Installation
-
-<CodeGroup>
-
-```bash Pull from GitHub Container Registry
+```bash
+# Pull the image
 docker pull ghcr.io/bas3line/ultrabalancer:latest
-```
 
-```bash Run with Docker
-docker run -d \
-  --name ultrabalancer \
-  -p 8080:8080 \
+# Run
+docker run -d -p 8080:8080 \
   ghcr.io/bas3line/ultrabalancer:latest \
-  start round-robin \
-  backend1.example.com:8080 \
-  backend2.example.com:8080 \
-  backend3.example.com:8080
+  start round-robin backend1:8080 backend2:8080
 ```
 
-```bash With Config File
-docker run -d \
-  --name ultrabalancer \
-  -p 8080:8080 \
-  -v $(pwd)/config.yaml:/config.yaml \
-  ghcr.io/bas3line/ultrabalancer:latest \
-  -c /config.yaml
+## Available Platforms
+
+| Platform | Status | File Format |
+|----------|--------|-------------|
+| Linux x86_64 | ✅ Available | tar.gz |
+| Linux ARM64 | Build from source | - |
+| macOS ARM64 | Build from source | - |
+| macOS x86_64 | Build from source | - |
+| Windows x86_64 | Build from source | - |
+
+## Package Server API
+
+Our package server provides programmatic access to releases:
+
+```bash
+# Get latest version
+curl https://package.ultrabalancer.com/version
+# {"version":"3.0.0","name":"UltraBalancer v3.0.0","repo":"bas3line/ultrabalancer"}
+
+# Get download URL for a platform
+curl https://package.ultrabalancer.com/latest/linux-x86_64
+# {"version":"3.0.0","filename":"ultrabalancer-3.0.0-x86_64-unknown-linux-gnu.tar.gz","url":"https://github.com/..."}
+
+# Download install script
+curl -o install.sh https://package.ultrabalancer.com/install.sh
 ```
-
-```dockerfile Build Custom Image
-FROM ghcr.io/bas3line/ultrabalancer:latest
-COPY config.yaml /config.yaml
-CMD ["-c", "/config.yaml"]
-```
-
-</CodeGroup>
-
-## Verification
-
-After installation, verify everything works:
-
-<CodeGroup>
-
-```bash Check Version
-ultrabalancer --version
-# Output: ultrabalancer 1.0.0
-```
-
-```bash System Info
-ultrabalancer info
-# Shows: CPU cores, OS, build info
-```
-
-```bash Generate Example Config
-ultrabalancer example > config.yaml
-cat config.yaml
-```
-
-```bash Test Run
-# Start with test config
-ultrabalancer start round-robin \
-  httpbin.org:80 \
-  example.com:80 \
-  -p 8080
-```
-
-</CodeGroup>
-
-## Platform-Specific Notes
-
-<AccordionGroup>
-  <Accordion title="Ubuntu 20.04 LTS / 22.04 LTS">
-    **Fully supported** - Recommended for production servers.
-
-    ```bash
-    # Install dependencies
-    sudo apt update
-    sudo apt install -y curl build-essential
-
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Clone and build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    sudo cp target/release/ultrabalancer /usr/local/bin/
-    ```
-
-    <Tip>Ubuntu 22.04 is the recommended platform for production deployments.</Tip>
-  </Accordion>
-
-  <Accordion title="Debian 11 (Bullseye) / 12 (Bookworm)">
-    **Fully supported** - Excellent for production.
-
-    ```bash
-    # Install dependencies
-    sudo apt update
-    sudo apt install -y curl build-essential pkg-config libssl-dev
-
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    sudo install -m 755 target/release/ultrabalancer /usr/local/bin/
-    ```
-  </Accordion>
-
-  <Accordion title="CentOS 7 / 8 / Stream">
-    **Supported** - May need newer OpenSSL for CentOS 7.
-
-    CentOS 7 requires EPEL and newer OpenSSL:
-    ```bash
-    # Enable EPEL
-    sudo yum install -y epel-release
-
-    # Install dependencies
-    sudo yum groupinstall "Development Tools"
-    sudo yum install -y openssl11-devel pkg-config git
-
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Build with openssl11
-    export OPENSSL_DIR=/usr/lib64/openssl11
-    export PKG_CONFIG_PATH=/usr/lib64/openssl11/pkgconfig
-
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    ```
-
-    CentOS 8/Stream:
-    ```bash
-    sudo dnf groupinstall "Development Tools"
-    sudo dnf install -y openssl-devel pkg-config git
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    ```
-  </Accordion>
-
-  <Accordion title="RHEL 8 / 9">
-    **Fully supported** - Enterprise-ready.
-
-    ```bash
-    # Register system (if not already)
-    sudo subscription-manager register
-
-    # Install dependencies
-    sudo dnf groupinstall "Development Tools"
-    sudo dnf install -y openssl-devel pkg-config git
-
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    sudo cp target/release/ultrabalancer /usr/local/bin/
-    ```
-  </Accordion>
-
-  <Accordion title="Arch Linux">
-    **Fully supported** - Rolling release, always latest.
-
-    ```bash
-    # Install dependencies
-    sudo pacman -Syu
-    sudo pacman -S base-devel openssl git rustup
-
-    # Setup Rust
-    rustup default stable
-
-    # Build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    sudo install -Dm755 target/release/ultrabalancer /usr/local/bin/ultrabalancer
-    ```
-
-    <Tip>Consider creating a PKGBUILD for AUR if you want to share with the Arch community.</Tip>
-  </Accordion>
-
-  <Accordion title="Alpine Linux">
-    **Supported** - Perfect for Docker/containers.
-
-    ```bash
-    # Install dependencies
-    apk add --no-cache build-base openssl-dev pkgconfig git rust cargo
-
-    # Build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    install -m 755 target/release/ultrabalancer /usr/local/bin/
-    ```
-
-    Alpine uses musl libc, which produces smaller binaries:
-    ```bash
-    # Check binary size
-    ls -lh target/release/ultrabalancer
-    # Usually 50-60% smaller than glibc builds
-    ```
-  </Accordion>
-
-  <Accordion title="macOS (Intel & Apple Silicon)">
-    **Fully supported** - Works on all modern Macs.
-
-    ```bash
-    # Install Xcode Command Line Tools
-    xcode-select --install
-
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Build
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-
-    # Install
-    sudo cp target/release/ultrabalancer /usr/local/bin/
-    ```
-
-    <Note>
-    M1/M2/M3 Macs (Apple Silicon) will build ARM64 binaries automatically, which are significantly faster than Intel builds.
-    </Note>
-  </Accordion>
-</AccordionGroup>
 
 ## Upgrading
 
-<CodeGroup>
+```bash
+# Re-run the installer
+curl -sSL https://package.ultrabalancer.com/install.sh | sh
 
-```bash From Binary
-# Download latest version
-curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
-
-# Replace existing binary
-sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
-chmod +x /usr/local/bin/ultrabalancer
-
-# Restart service
-sudo systemctl restart ultrabalancer
+# Or download manually
+curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-3.0.0-x86_64-unknown-linux-gnu.tar.gz
 ```
-
-```bash From Source
-cd ultrabalancer
-git pull origin main
-cargo build --release
-sudo cp target/release/ultrabalancer /usr/local/bin/
-
-# Restart service
-sudo systemctl restart ultrabalancer
-```
-
-```bash Docker
-# Pull latest image
-docker pull ghcr.io/bas3line/ultrabalancer:latest
-
-# Restart container
-docker stop ultrabalancer
-docker rm ultrabalancer
-docker run -d --name ultrabalancer -p 8080:8080 \
-  ghcr.io/bas3line/ultrabalancer:latest start round-robin backend1:8080 backend2:8080
-```
-
-</CodeGroup>
-
-## Uninstallation
-
-<CodeGroup>
-
-```bash Remove Binary
-sudo rm /usr/local/bin/ultrabalancer
-```
-
-```bash Remove Service
-sudo systemctl stop ultrabalancer
-sudo systemctl disable ultrabalancer
-sudo rm /etc/systemd/system/ultrabalancer.service
-sudo systemctl daemon-reload
-```
-
-```bash Remove Docker
-docker stop ultrabalancer
-docker rm ultrabalancer
-docker rmi ghcr.io/bas3line/ultrabalancer:latest
-```
-
-```bash Full Cleanup
-# Remove binary
-sudo rm /usr/local/bin/ultrabalancer
-
-# Remove config
-sudo rm -rf /etc/ultrabalancer
-
-# Remove service
-sudo systemctl stop ultrabalancer
-sudo systemctl disable ultrabalancer
-sudo rm /etc/systemd/system/ultrabalancer.service
-sudo systemctl daemon-reload
-
-# Remove logs
-sudo rm -rf /var/log/ultrabalancer
-```
-
-</CodeGroup>
-
-## Troubleshooting
-
-<AccordionGroup>
-  <Accordion title="Rust Installation Failed">
-    If `rustup` fails to install:
-
-    ```bash
-    # Try manual installation
-    curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-
-    # Or download from rust-lang.org
-    wget https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init
-    chmod +x rustup-init
-    ./rustup-init
-    ```
-  </Accordion>
-
-  <Accordion title="OpenSSL Not Found">
-    If cargo build fails with OpenSSL errors:
-
-    **Ubuntu/Debian:**
-    ```bash
-    sudo apt install -y libssl-dev pkg-config
-    ```
-
-    **CentOS/RHEL:**
-    ```bash
-    sudo yum install -y openssl-devel pkg-config
-    ```
-
-    **Set OpenSSL path manually:**
-    ```bash
-    export OPENSSL_DIR=/usr/lib/ssl
-    export PKG_CONFIG_PATH=/usr/lib/pkgconfig
-    cargo build --release
-    ```
-  </Accordion>
-
-  <Accordion title="Permission Denied">
-    If you can't write to `/usr/local/bin`:
-
-    ```bash
-    # Install to user directory instead
-    mkdir -p ~/.local/bin
-    cp target/release/ultrabalancer ~/.local/bin/
-
-    # Add to PATH (add to ~/.bashrc or ~/.zshrc)
-    export PATH="$HOME/.local/bin:$PATH"
-    ```
-  </Accordion>
-
-  <Accordion title="Binary Not Found After Install">
-    Check if `/usr/local/bin` is in your PATH:
-
-    ```bash
-    echo $PATH | grep /usr/local/bin
-    ```
-
-    If not, add it to your shell config:
-    ```bash
-    # For bash
-    echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc
-    source ~/.bashrc
-
-    # For zsh
-    echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc
-    source ~/.zshrc
-    ```
-  </Accordion>
-</AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
-    Get UltraBalancer running in 5 minutes
+  <Card title="Quickstart" icon="play" href="/quickstart">
+    Get running in 2 minutes
   </Card>
   <Card title="Configuration" icon="gear" href="/configuration/overview">
-    Learn about all configuration options
-  </Card>
-  <Card title="Deploy to Server" icon="server" href="/deployment/linux-server">
-    Production deployment on Linux servers
-  </Card>
-  <Card title="Testing" icon="flask" href="/testing/local-testing">
-    Test your load balancer setup
+    Configure for production
   </Card>
 </CardGroup>

@@ -7,35 +7,39 @@ icon: 'rocket'
 ## Install
 
 ```bash
-cargo install ultrabalancer
+curl -sSL https://package.ultrabalancer.com/install.sh | sh
 ```
 
-Or download from [releases](https://github.com/bas3line/ultrabalancer/releases)
-
-## Run Your First Load Balancer
+That's it! Verify with:
 
 ```bash
-# Basic - 2 backends, round-robin
-ultrabalancer -b server1:8080 -b server2:8080
+ultrabalancer --version
+```
+
+## Start Load Balancing
+
+```bash
+# Basic - round-robin across 2 backends
+ultrabalancer start round-robin backend1:8080 backend2:8080 -p 80
+
+# Least connections - routes to least busy backend
+ultrabalancer start least-connections backend1:8080 backend2:8080 -p 80
 
 # Custom port
-ultrabalancer -p 80 -b 192.168.1.10:8080 -b 192.168.1.11:8080
-
-# With weights
-ultrabalancer -b app1:8080:200 -b app2:8080:100 -b app3:8080:50
+ultrabalancer start round-robin app1:8080 app2:8080 -p 8080
 ```
 
 ## Add Monitoring
 
 ```bash
-# One command for Grafana + Prometheus
+# One command to start Grafana + Prometheus
 ultrabalancer dashboard --start
 ```
 
-- Grafana: http://localhost:3000 (admin + auto-generated password)
-- Prometheus: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/admin)
+- **Prometheus**: http://localhost:9090
 
-## Using a Config File
+## Use a Config File
 
 Create `config.yaml`:
 
@@ -51,29 +55,36 @@ backends:
   - host: "192.168.1.11"
     port: 8080
     weight: 100
-
-health_check:
-  enabled: true
-  interval_ms: 5000
-  max_failures: 3
 ```
 
-Run it:
+Run with the config:
 
 ```bash
-ultrabalancer -c config.yaml
+ultrabalancer start -c config.yaml
 ```
 
 ## Test It
 
 ```bash
-# Send some requests
+# Send requests
 curl http://localhost:8080
 curl http://localhost:8080/health
 ```
 
+## Available Algorithms
+
+| Algorithm | Use Case |
+|-----------|----------|
+| `round-robin` | Simple equal distribution |
+| `least-connections` | Route to least busy backend |
+| `ip-hash` | Session affinity by client IP |
+| `weighted` | Priority-based with weights |
+| `random` | Random selection |
+| `power-of-two` | Pick 2 random, use least loaded |
+| `fastest-response` | Route to fastest responder |
+
 ## Next Steps
 
-- [CLI Reference](/configuration/cli-reference) - All commands and options
+- [Configuration](/configuration/overview) - All config options
 - [Monitoring](/integration/monitoring) - Set up dashboards
 - [Algorithms](/concepts/algorithms) - Choose the right algorithm

@@ -1,255 +1,184 @@
 ---
 title: Introduction
-description: 'Production-grade load balancer written in Rust - fastest for modern cloud-native deployments'
+description: 'UltraBalancer - Production-grade load balancer built in Rust'
 ---
 
 ## What is UltraBalancer?
 
-UltraBalancer is a modern, high-performance load balancer built from the ground up in Rust. Designed for extreme throughput with exceptional developer experience.
+UltraBalancer is a modern, high-performance load balancer built with Rust. It combines extreme throughput with an exceptional developer experience — everything you need to distribute traffic across your backends.
 
 <CardGroup cols={2}>
-  <Card
-    title="Competitive Performance"
-    icon="bolt"
-    href="/testing/benchmarks"
-  >
-    Within 15% of NGINX in benchmarks - built for real-world cloud workloads
+  <Card title="High Performance" icon="bolt">
+    Handle 500k+ RPS with lock-free data structures and zero-copy I/O
   </Card>
-  <Card
-    title="One-Command Monitoring"
-    icon="chart-line"
-  >
-    `ultrabalancer dashboard --start` - instant Grafana + Prometheus setup
+  <Card title="One-Command Setup" icon="rocket">
+    `ultrabalancer dashboard --start` - instant Grafana + Prometheus
   </Card>
-  <Card
-    title="7 Algorithms"
-    icon="code-branch"
-  >
+  <Card title="7 Algorithms" icon="code-branch">
     Round-robin, least-connections, IP-hash, weighted, random, power-of-two, fastest-response
   </Card>
-  <Card
-    title="Modern Admin API"
-    icon="terminal"
-  >
-    Secure API for runtime backend management with X-API-Key auth
+  <Card title="Production Ready" icon="shield">
+    TLS termination, rate limiting, sticky sessions, circuit breakers
   </Card>
 </CardGroup>
 
-## Key Features
+## Features
 
 <AccordionGroup>
-  <Accordion title="Load Balancing Algorithms">
+  <Accordion title="Load Balancing">
     - **Round Robin** - Equal distribution across backends
-    - **Least Connections** - Smart connection-aware balancing
+    - **Least Connections** - Route to least busy backend
     - **IP Hash** - Consistent hashing for session affinity
-    - **Weighted Round Robin** - Priority-based distribution
+    - **Weighted** - Priority-based distribution
     - **Random** - Stochastic distribution
     - **Power of Two** - Pick 2 random, use least loaded
-    - **Fastest Response** - Route to fastest recent response
-
-    [Learn more about algorithms →](/concepts/algorithms)
+    - **Fastest Response** - Route to fastest recent responder
   </Accordion>
 
   <Accordion title="Protocol Support">
-    - **HTTP/1.1** with keep-alive connection pooling
-    - **HTTP/2** multiplexing for improved performance
-    - **WebSocket** full-duplex proxying support
-    - **TLS termination** with rustls (modern, memory-safe TLS)
-
-    [Learn more about architecture →](/concepts/architecture)
+    - HTTP/1.1 with keep-alive connection pooling
+    - HTTP/2 multiplexing
+    - WebSocket full-duplex proxying
+    - TLS termination with rustls
   </Accordion>
 
-  <Accordion title="Caching & Compression">
-    - **Response caching** with TTL and Cache-Control support
-    - **Gzip compression** for text content
-    - **Brotli compression** for better ratios
-    - **Zstd compression** for maximum performance
-    - Automatic content-type detection
-
-    [Learn more about configuration →](/configuration/overview)
+  <Accordion title="Performance">
+    - Response caching with TTL support
+    - Gzip, Brotli, and Zstd compression
+    - Graceful shutdown with connection draining
+    - Real-time metrics (p50, p95, p99 latencies)
   </Accordion>
 
-  <Accordion title="Security & Rate Limiting">
-    - **Global rate limiting** - requests per second cap
-    - **Per-IP rate limiting** - prevent abuse from single sources
-    - **IP filtering** - whitelist/blacklist with CIDR support
-    - **TLS termination** - secure client connections
-
-    [Learn more about security →](/advanced/security)
+  <Accordion title="Reliability">
+    - Automatic health checking
+    - Circuit breaker pattern
+    - Retry with exponential backoff
+    - Sticky sessions via cookies
   </Accordion>
 
-  <Accordion title="Session Management">
-    - **Sticky sessions** - cookie-based backend affinity
-    - **Health checking** - automatic backend monitoring
-    - **Circuit breaker** - fault tolerance pattern
-    - **Retry with backoff** - exponential backoff on failures
-
-    [Learn more about health checks →](/concepts/health-checks)
+  <Accordion title="Security">
+    - Global and per-IP rate limiting
+    - IP whitelist/blacklist with CIDR support
+    - X-API-Key authentication for admin API
+    - Request ID tracking for distributed tracing
   </Accordion>
 
-  <Accordion title="Operations & Observability">
-    - **Graceful shutdown** - drain connections on SIGTERM
-    - **Access logging** - combined and JSON formats
-    - **Real-time metrics** - response times (p50, p95, p99)
-    - **Prometheus endpoint** - `/prometheus` metrics export
-    - **Request ID tracking** - distributed tracing support
-
-    [Learn more about metrics →](/concepts/metrics)
+  <Accordion title="Operations">
+    - Prometheus metrics endpoint at `/prometheus`
+    - JSON metrics at `/metrics`
+    - Access logging (combined and JSON formats)
+    - Hot configuration reload
   </Accordion>
 </AccordionGroup>
 
 ## Why UltraBalancer?
 
 <CardGroup cols={3}>
-  <Card title="Extreme Performance" icon="gauge-high">
-    500k+ RPS with lock-free data structures and zero-copy I/O. HTTP/2 multiplexing for reduced latency.
+  <Card title="Blazing Fast" icon="gauge-high">
+    500k+ RPS with zero-copy I/O and HTTP/2 multiplexing
   </Card>
-  <Card title="Feature Complete" icon="shield">
-    Caching, compression, rate limiting, sticky sessions, TLS - everything built in, no plugins needed.
+  <Card title="All-in-One" icon="box">
+    Caching, compression, rate limiting, TLS — built in, no plugins
   </Card>
-  <Card title="Zero Config" icon="wand-magic-sparkles">
-    Start with a single command. YAML/TOML config for production. Sane defaults throughout.
+  <Card title="Easy Start" icon="wand-magic-sparkles">
+    Single command to start. Config files for production.
   </Card>
 </CardGroup>
 
 ## Quick Example
 
 ```bash
-# Basic load balancing
+# Start load balancing across two backends
 ultrabalancer start round-robin backend1:8080 backend2:8080 -p 80
 
-# With caching and compression
+# With caching and compression enabled
 ultrabalancer start least-connections backend1:8080 backend2:8080 \
-  --cache --compression gzip -p 80
+  --cache --compression gzip
 
-# Full production config
+# Start with a config file
 ultrabalancer start -c /etc/ultrabalancer/config.yaml
 ```
 
-UltraBalancer distributes traffic with automatic health checking, retries, and failover.
+## One-Click Install
 
-## Benchmark Winner
+```bash
+# Install UltraBalancer with a single command
+curl -sSL https://package.ultrabalancer.com/install.sh | sh
+```
 
-UltraBalancer delivers **competitive performance** with **superior features**:
+That's it! The installer automatically detects your platform (Linux/macOS/Windows), downloads the latest version, and sets up the binary.
 
-| Metric | UltraBalancer | NGINX |
-|--------|--------------|-------|
-| RPS (100 conn) | 18,722 | 21,899 |
-| Latency | 38.93ms | 34.47ms |
-| Features | 7 algorithms, built-in metrics, 1-cmd dashboard | Basic features, manual config |
-| Setup Time | `ultrabalancer dashboard --start` | Hours of config |
+[See all installation options →](/installation)
 
-**UltraBalancer wins on developer experience** - one command gives you full monitoring with Grafana dashboards and Prometheus metrics.
+## One-Command Monitoring
 
-[Benchmark Results →](/testing/benchmarks)
+```bash
+# Start Grafana + Prometheus with one command
+ultrabalancer dashboard --start
+```
 
-## Installation
+- **Grafana**: http://localhost:3000 (admin + auto-generated password)
+- **Prometheus**: http://localhost:9090
 
-<Tabs>
-  <Tab title="Linux (Binary)">
-    ```bash
-    # Download latest release
-    curl -LO https://github.com/bas3line/ultrabalancer/releases/latest/download/ultrabalancer-linux-x86_64
-    chmod +x ultrabalancer-linux-x86_64
-    sudo mv ultrabalancer-linux-x86_64 /usr/local/bin/ultrabalancer
-
-    # Verify
-    ultrabalancer --version
-    ```
-
-    [Full installation guide →](/installation)
-  </Tab>
-
-  <Tab title="Build from Source">
-    ```bash
-    # Install Rust
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    source $HOME/.cargo/env
-
-    # Build UltraBalancer
-    git clone https://github.com/bas3line/ultrabalancer.git
-    cd ultrabalancer
-    cargo build --release
-    sudo cp target/release/ultrabalancer /usr/local/bin/
-    ```
-
-    [Detailed build instructions →](/installation#build-from-source)
-  </Tab>
-
-  <Tab title="Docker">
-    ```bash
-    docker pull ghcr.io/bas3line/ultrabalancer:latest
-
-    docker run -d -p 8080:8080 \
-      ghcr.io/bas3line/ultrabalancer:latest \
-      start round-robin backend1:8080 backend2:8080
-    ```
-
-    [Docker deployment guide →](/deployment/docker)
-  </Tab>
-</Tabs>
+[Learn more about monitoring →](/integration/monitoring)
 
 ## Use Cases
 
 <CardGroup cols={2}>
   <Card title="High-Traffic APIs" icon="globe">
-    Handle 500k+ RPS with caching, compression, and rate limiting. Perfect for production APIs.
+    Handle 500k+ RPS with built-in caching, compression, and rate limiting
   </Card>
 
   <Card title="Microservices" icon="diagram-project">
-    Health checking, circuit breakers, and sticky sessions for stateful services.
+    Health checking, circuit breakers, and sticky sessions for stateful services
   </Card>
 
-  <Card title="WebSocket Apps" icon="arrows-left-right">
-    Full WebSocket proxying for real-time applications like chat and gaming.
+  <Card title="Real-Time Apps" icon="arrows-left-right">
+    Full WebSocket proxying for chat, gaming, and live updates
   </Card>
 
-  <Card title="Edge Proxies" icon="shield-check">
-    TLS termination, IP filtering, and access logging at the edge.
+  <Card title="Edge Deployments" icon="cloud">
+    TLS termination, IP filtering, and access logging at the edge
   </Card>
 </CardGroup>
 
-## Next Steps
+## Performance
+
+| Metric | UltraBalancer | NGINX |
+|--------|---------------|-------|
+| RPS (100 conn) | 18,722 | 21,899 |
+| Latency (p50) | 38.93ms | 34.47ms |
+| Setup Time | `ultrabalancer dashboard --start` | Hours of config |
+
+UltraBalancer delivers competitive performance with superior developer experience and built-in monitoring.
+
+[See benchmark details →](/testing/benchmarks)
+
+## Get Started
 
 <CardGroup cols={2}>
-  <Card
-    title="Quickstart"
-    icon="play"
-    href="/quickstart"
-  >
-    Get up and running in 5 minutes
+  <Card title="Quickstart" icon="play" href="/quickstart">
+    Get running in 2 minutes
   </Card>
-  <Card
-    title="Installation"
-    icon="download"
-    href="/installation"
-  >
-    Install UltraBalancer on your system
+  <Card title="Installation" icon="download" href="/installation">
+    Install on your system
   </Card>
-  <Card
-    title="Architecture"
-    icon="gear"
-    href="/concepts/architecture"
-  >
-    Learn about the system architecture
+  <Card title="Configuration" icon="gear" href="/configuration/overview">
+    Configure for production
   </Card>
-  <Card
-    title="Algorithms"
-    icon="server"
-    href="/concepts/algorithms"
-  >
-    Explore load balancing algorithms
+  <Card title="Algorithms" icon="server" href="/concepts/algorithms">
+    Choose the right algorithm
   </Card>
 </CardGroup>
 
-## Community & Support
+## Resources
 
 <CardGroup cols={3}>
   <Card title="GitHub" icon="github" href="https://github.com/bas3line/ultrabalancer">
-    Source code, issues, and discussions
+    Source code and issues
   </Card>
-  <Card title="Documentation" icon="book" href="https://ultrabalancer.com">
-    Complete documentation and guides
+  <Card title="Package Server" icon="box" href="https://package.ultrabalancer.com">
+    Downloads and install script
   </Card>
   <Card title="Contact" icon="envelope" href="mailto:kiraa@tuta.io">
     Get help and support
